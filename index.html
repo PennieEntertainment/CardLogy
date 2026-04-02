@@ -571,38 +571,44 @@
     joinBtn.disabled = true;
     joinBtn.textContent = 'Joining…';
 
+    destroyPeer();
+
     peer = new Peer(undefined, { debug: 0 });
 
+    var joinTimeout = setTimeout(function () {
+      roomError.textContent = 'Connection timed out. Check the room code and try again.';
+      roomError.hidden = false;
+      joinBtn.disabled = false;
+      joinBtn.textContent = 'Join';
+      destroyPeer();
+    }, 15000);
+
     peer.on('open', function () {
-      const c = peer.connect(code, { reliable: true });
+      const c = peer.connect(code);
+      conn = c;
 
       c.on('open', function () {
+        clearTimeout(joinTimeout);
         joinBtn.disabled = false;
         joinBtn.textContent = 'Join';
 
-        // Guest: show host in slot1 initially as unknown, fill on hello
+        // Guest (me) in slot2, host slot1 filled once we get their hello
         name1.textContent = '…';
         avatar1.textContent = '?';
-        // Guest in slot2
         name2.innerHTML = '';
         name2.textContent = myName;
         avatar2.textContent = initial(myName);
         badge2.hidden = false;
 
-        // Hide room code section for guest
         roomCodeSection.hidden = true;
-
         showLobby();
-        wireConnection(c);
 
-        // Override wireConnection's open handler — already open here
         c.send({ type: 'hello', name: myName });
       });
 
-      // When guest receives host's hello, put host in slot1
-      const origData = c._events && c._events['data'];
       c.on('data', function (data) {
-        if (data && data.type === 'hello') {
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'hello') {
           const safeName = sanitize(String(data.name || 'Host').slice(0, 20));
           name1.textContent = safeName;
           avatar1.textContent = initial(safeName);
@@ -610,7 +616,12 @@
         }
       });
 
+      c.on('close', function () {
+        clearSlot2();
+      });
+
       c.on('error', function (err) {
+        clearTimeout(joinTimeout);
         console.error('Connection error:', err);
         roomError.textContent = 'Could not connect. Check the room code.';
         roomError.hidden = false;
@@ -620,6 +631,7 @@
     });
 
     peer.on('error', function (err) {
+      clearTimeout(joinTimeout);
       console.error('Peer error:', err);
       roomError.textContent = 'Connection failed. Try again.';
       roomError.hidden = false;
@@ -627,9 +639,6 @@
       joinBtn.textContent = 'Join';
     });
   });
-
-  // ── Host: fills slot2 on guest hello; also updates slot1 name from guest perspective
-  // ── (already handled via wireConnection + data events above)
 
   // ── Copy room code ────────────────────────────────────────
   copyBtn.addEventListener('click', function () {
