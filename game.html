@@ -305,8 +305,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.5;
     }
+    .card-art img { opacity: 1; }
+    .card-art:not(:has(img)) { opacity: 0.5; }
     .card-name {
       position: absolute;
       bottom: 20px; left: 2px; right: 2px;
@@ -1082,9 +1083,12 @@
       if (affordable) el.classList.add('can-play');
       else            el.classList.add('cannot-play');
 
+      var artHtml = card.picture
+        ? '<img src="' + esc(card.picture) + '" alt="" style="width:100%;height:100%;object-fit:cover;object-position:' + (card.picX || 50) + '% ' + (card.picY || 50) + '%">'
+        : (card.emoji || '🃏');
       el.innerHTML =
         '<div class="card-gem">' + card.cost + '</div>' +
-        '<div class="card-art">' + (card.emoji || '🃏') + '</div>' +
+        '<div class="card-art">' + artHtml + '</div>' +
         '<div class="card-name">' + esc(card.name) + '</div>' +
         '<div class="card-desc">' + esc(card.desc || '') + '</div>' +
         (card.type === 'minion'
@@ -1120,8 +1124,11 @@
       var el = document.createElement('div');
       el.className = 'minion' + (minion.sleeping ? ' sleeping' : '') + ((!isOpp && !minion.sleeping && isMyTurn()) ? ' can-attack' : '');
       el.dataset.idx = idx;
+      var mArtHtml = minion.picture
+        ? '<img src="' + esc(minion.picture) + '" alt="" style="width:100%;height:100%;object-fit:cover;object-position:' + (minion.picX || 50) + '% ' + (minion.picY || 50) + '%">'
+        : (minion.emoji || '⚔️');
       el.innerHTML =
-        '<div class="minion-art">' + (minion.emoji || '⚔️') + '</div>' +
+        '<div class="minion-art">' + mArtHtml + '</div>' +
         '<div class="m-name">' + esc(minion.name) + '</div>' +
         '<div class="m-atk"><span>' + minion.atk + '</span></div>' +
         '<div class="m-hp' + (minion.hp < minion.maxHp ? ' damaged' : '') + '">' + minion.hp + '</div>';
@@ -1307,12 +1314,15 @@
         hp: card.hp,
         maxHp: card.hp,
         emoji: card.emoji || '⚔️',
+        picture: card.picture || null,
+        picX: card.picX != null ? card.picX : 50,
+        picY: card.picY != null ? card.picY : 50,
         desc: card.desc || '',
         keywords: parseKeywords(card.desc || ''),
         sleeping: true, // summoning sickness
       };
       gs.me.field.push(minionOnField);
-      sendNet({ action: 'play-minion', card: { name: card.name, atk: card.atk, hp: card.hp, emoji: card.emoji, desc: card.desc } });
+      sendNet({ action: 'play-minion', card: { name: card.name, atk: card.atk, hp: card.hp, emoji: card.emoji, picture: card.picture || null, picX: card.picX, picY: card.picY, desc: card.desc } });
     }
 
     renderAll();
@@ -1327,6 +1337,9 @@
       hp: data.card.hp,
       maxHp: data.card.hp,
       emoji: data.card.emoji || '⚔️',
+      picture: data.card.picture || null,
+      picX: data.card.picX != null ? data.card.picX : 50,
+      picY: data.card.picY != null ? data.card.picY : 50,
       desc: data.card.desc || '',
       keywords: parseKeywords(data.card.desc || ''),
       sleeping: true,

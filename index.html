@@ -810,7 +810,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.3.1</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.3.3</div>
 
 <div class="card">
   <div class="logo">
@@ -1268,7 +1268,7 @@
     connLabel.textContent = connected ? 'Connected' : 'Waiting…';
     waitingMsg.hidden = connected;
     connectedMsg.hidden = !connected;
-    startBtn.disabled = !connected;
+    startBtn.disabled = !(connected && isHost);
     slot2.classList.toggle('filled', connected);
   }
 
@@ -1332,6 +1332,65 @@
     return String(str).replace(/[<>"'&]/g, c => ({
       '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '&':'&amp;'
     }[c]));
+  }
+
+  // ── Build a game-ready deck array from the player's saved deck ──
+  // Reads the user-specific localStorage key, fetches cards.json,
+  // expands the { cardId: count } map into a shuffled card array.
+  function buildGameDeck() {
+    var RACE_EMOJI_MAP = {
+      murloc: '🐟', undead: '💀', beast: '🐾', dragon: '🐉',
+      mech: '⚙️', elemental: '🔥', pirate: '☠️', demon: '👹',
+      naga: '🐍', quilboar: '🐗', totem: '🪵',
+    };
+    var u;
+    try {
+      var s = JSON.parse(sessionStorage.getItem('cl_user') || 'null');
+      u = (s && s.username) ? s.username.toLowerCase() : null;
+    } catch { u = null; }
+    var key = u ? 'cl_deck_v1_' + u : 'cl_deck_v1_anon';
+    var deckMap;
+    try { deckMap = JSON.parse(localStorage.getItem(key) || '{}'); } catch { deckMap = {}; }
+    if (!deckMap || typeof deckMap !== 'object' || Array.isArray(deckMap) || !Object.keys(deckMap).length) {
+      return Promise.resolve([]);
+    }
+    return fetch('./cards.json?t=' + Date.now())
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .catch(function () { return []; })
+      .then(function (cards) {
+        var deck = [];
+        Object.keys(deckMap).forEach(function (id) {
+          var count = deckMap[id] || 0;
+          var card = cards.find(function (c) { return c.id === id; });
+          if (!card) return;
+          var raceKey = (card.race || '').toLowerCase();
+          var emoji = RACE_EMOJI_MAP[raceKey] || (card.cardType === 'spell' ? '✨' : '⚔️');
+          for (var i = 0; i < count; i++) {
+            deck.push({
+              id:       card.id,
+              name:     card.name,
+              cost:     card.manaCost  != null ? card.manaCost  : 0,
+              atk:      card.attack    != null ? card.attack    : 0,
+              hp:       card.defense   != null ? card.defense   : 1,
+              type:     card.cardType  || 'minion',
+              emoji:    emoji,
+              desc:     card.description || '',
+              race:     card.race || '',
+              picture:  card.picture  || null,
+              picX:     card.picX     != null ? card.picX     : 50,
+              picY:     card.picY     != null ? card.picY     : 50,
+              rarity:   card.rarity   || 'common',
+              keywords: card.keywords || [],
+            });
+          }
+        });
+        // Fisher-Yates shuffle
+        for (var i = deck.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+        }
+        return deck;
+      });
   }
 
   // ── Create lobby ──────────────────────────────────────────
@@ -1530,6 +1589,17 @@
           roomError.hidden = false;
           destroyPeer();
         }
+      } else if (msg.type === 'start') {
+        buildGameDeck().then(function (gameDeck) {
+          sessionStorage.setItem('cl_game', JSON.stringify({
+            myName:   myName,
+            oppName:  opponentName,
+            myRole:   myRole,
+            roomCode: roomCode,
+            myDeck:   gameDeck,
+          }));
+          window.location.href = 'game.html';
+        });
       }
     });
 
@@ -1582,19 +1652,24 @@
 
   // ── Start game ───────────────────────────────────────────
   startBtn.addEventListener('click', function () {
-    // Persist game session so game.html can read it
-    var deck = [];
-    try { deck = JSON.parse(localStorage.getItem('cl_deck_v1') || '[]'); } catch { deck = []; }
+    startBtn.disabled = true;
+    buildGameDeck().then(function (gameDeck) {
+      sessionStorage.setItem('cl_game', JSON.stringify({
+        myName:   myName,
+        oppName:  opponentName,
+        myRole:   myRole,
+        roomCode: roomCode,
+        myDeck:   gameDeck,
+      }));
 
-    sessionStorage.setItem('cl_game', JSON.stringify({
-      myName:   myName,
-      oppName:  opponentName,
-      myRole:   myRole,
-      roomCode: roomCode,
-      myDeck:   deck,
-    }));
+      // Notify the guest so they also navigate to game.html
+      if (mqttClient && roomCode) {
+        mqttClient.publish(TOPIC_PREFIX + roomCode,
+          JSON.stringify({ from: 'host', type: 'start' }), { qos: 1 });
+      }
 
-    window.location.href = 'game.html';
+      window.location.href = 'game.html';
+    });
   });
 
   // ── Clear errors on input ─────────────────────────────────
