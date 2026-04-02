@@ -614,6 +614,8 @@
           <select id="fRace">
             <option value="none">None</option>
             <option value="VideoGame">Video Game</option>
+            <option value="Rodiller">Rodiller</option>
+            <option value="Nita">Nita</option>
           </select>
         </div>
 
@@ -673,7 +675,7 @@
 
   <script>
     // ── Constants ──────────────────────────────────────────
-    const API        = '%VITE_RELAY_URL%/cards';  // empty prefix in dev (Vite proxy); full URL in prod
+    const API        = '/cards';  // proxied to localhost:8080 in dev (see vite.config.js)
     const CARDS_JSON = './cards.json'; // static read (GitHub Pages + local)
 
     const KEYWORDS = [
