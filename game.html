@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -963,6 +963,8 @@
   // ─── MQTT ─────────────────────────────────────────────────
   var mqtt = null;
   var mqttSubscribed = false; // true once SUBACK received
+  // Guest waits for host's 'game-start' before its turn logic begins
+  var guestReceivedStart = false;
 
   function connectMQTT() {
     if (!roomCode) return; // standalone / test mode
@@ -992,6 +994,19 @@
       var msg;
       try { msg = JSON.parse(buf.toString()); } catch { return; }
       if (!msg || msg.from === myRole) return; // ignore own messages
+      // Handle game-start handshake (not wrapped in 'msg')
+      if (msg.type === 'game-start' && myRole === 'guest') {
+        if (!guestReceivedStart) {
+          guestReceivedStart = true;
+          startTurn('host'); // host goes first
+        }
+        return;
+      }
+      // Guest-ready ACK received by host — host can now start turn 1
+      if (msg.type === 'guest-ready' && myRole === 'host') {
+        onGuestReady();
+        return;
+      }
       // Ignore retained lobby messages (announce, bye, start, etc.)
       if (msg.type !== 'msg') return;
       if (msg.data) handleNetMsg(msg.data);
@@ -1189,7 +1204,7 @@
     $oppDeckCount.textContent = gs.opp.deckCount;
 
     var myTurn = isMyTurn();
-    $endTurnBtn.disabled = !myTurn || gs.gameOver;
+    $endTurnBtn.disabled = !myTurn || gs.gameOver || !_initStarted;
 
     if (myTurn) {
       $turnIndicator.textContent = 'Your Turn';
@@ -1502,25 +1517,68 @@
 
   // ─── Init ────────────────────────────────────────────────────
   var _initStarted = false;
+  var _hostTurnPending = false; // host waiting for guest-ready ACK
 
   // Called once MQTT subscription is confirmed (or immediately in standalone mode)
   function onMqttReady() {
     if (_initStarted) return;
     _initStarted = true;
-    // Host: wait an extra 1.5 s to give the guest time to also subscribe,
-    // then kick off turn 1.  Guest: just set the initial view — their turn
-    // starts when they receive the host’s first end-turn message.
-    if (myRole === 'host') {
-      setTimeout(function () { startTurn('host'); }, 1500);
-    } else {
-      startTurn('host'); // shows “Opponent’s Turn” for the guest immediately
+
+    if (!roomCode) {
+      // Standalone/test mode — start immediately
+      startTurn('host');
+      return;
     }
+
+    if (myRole === 'host') {
+      // Broadcast game-start so the guest knows the host is subscribed.
+      // Retry several times to handle brief MQTT hiccups.
+      _hostTurnPending = true;
+      var attempts = 0;
+      function sendGameStart() {
+        if (!_hostTurnPending) return;
+        if (mqtt && mqtt.connected) {
+          mqtt.publish(TOPIC_PREFIX + roomCode,
+            JSON.stringify({ from: 'host', type: 'game-start' }), { qos: 1 });
+        }
+        attempts++;
+        if (attempts < 8) setTimeout(sendGameStart, 800);
+      }
+      setTimeout(sendGameStart, 400);
+      // Hard fallback: start turn 1 even if guest-ready never arrives
+      setTimeout(function () {
+        if (_hostTurnPending) { _hostTurnPending = false; startTurn('host'); }
+      }, 8000);
+    } else {
+      // Guest: send ACK so the host knows we are subscribed and ready
+      function sendGuestReady() {
+        if (mqtt && mqtt.connected) {
+          mqtt.publish(TOPIC_PREFIX + roomCode,
+            JSON.stringify({ from: 'guest', type: 'guest-ready' }), { qos: 1 });
+        }
+      }
+      sendGuestReady();
+      // Wait for host's game-start (handled in onMessage -> startTurn('host'))
+      // Hard fallback in case those messages never arrive
+      setTimeout(function () {
+        if (!guestReceivedStart) {
+          guestReceivedStart = true;
+          startTurn('host');
+        }
+      }, 8000);
+    }
+  }
+
+  function onGuestReady() {
+    if (!_hostTurnPending) return;
+    _hostTurnPending = false;
+    startTurn('host');
   }
 
   function init() {
     // Deal opening hands
-    drawCard('me',  3);
-    // Opponent's simulated hand
+    drawCard('me', 3);
+    // Opponent's simulated hand (3 cards face-down)
     for (var i = 0; i < 3; i++) {
       if (gs.opp.hand.length < 10) {
         gs.opp.hand.push({ id: 'opp_hidden' });
@@ -1528,12 +1586,14 @@
       }
     }
 
+    // Render initial board — End Turn button stays disabled until handshake
+    $endTurnBtn.disabled = true;
     renderAll();
 
     connectMQTT();
 
     // Fallback: if MQTT never connects (standalone / network error),
-    // start the turn after 4 seconds so the game is still playable solo.
+    // start after 4 seconds so the game is still playable solo.
     setTimeout(function () { onMqttReady(); }, 4000);
   }
 
