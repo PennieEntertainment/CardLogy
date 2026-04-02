@@ -303,7 +303,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.2.2</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.2.3</div>
 
 <div class="card">
   <div class="logo">
@@ -383,10 +383,16 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 (function () {
   'use strict';
+
+  // ── Free public MQTT broker — no server, no account needed ─
+  // broker.emqx.io is a free community broker maintained by EMQ.
+  // Room messages flow through topic: cardlogy-v1/{ROOMCODE}
+  var MQTT_BROKER  = 'wss://broker.emqx.io:8084/mqtt';
+  var TOPIC_PREFIX = 'cardlogy-v1/';
 
   // ── DOM refs ──────────────────────────────────────────────
   const setupView   = document.getElementById('setup-view');
@@ -420,11 +426,13 @@
   const roomCodeSection = document.getElementById('room-code-section');
 
   // ── State ─────────────────────────────────────────────────
-  let peer = null;
-  let conn = null;
-  let isHost = false;
-  let myName = '';
-  let opponentName = '';
+  var mqttClient   = null;
+  var roomCode     = null;
+  var myRole       = null;   // 'host' | 'guest'
+  var isHost       = false;
+  var myName       = '';
+  var opponentName = '';
+  var guestPresent = false;
 
   // ── Helpers ───────────────────────────────────────────────
   function initial(name) {
@@ -477,64 +485,33 @@
   }
 
   function destroyPeer() {
-    if (conn) { try { conn.close(); } catch(e) {} conn = null; }
-    if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
+    var c    = mqttClient;
+    var rc   = roomCode;
+    var role = myRole;
+    var host = isHost;
+    mqttClient   = null;
+    roomCode     = null;
+    myRole       = null;
+    isHost       = false;
+    guestPresent = false;
+    if (!c) return;
+    if (c.connected && rc) {
+      // Notify other player, and if host clear the retained announce
+      try { c.publish(TOPIC_PREFIX + rc, JSON.stringify({ from: role, type: 'bye' }), { qos: 0 }); } catch(e) {}
+      if (host) {
+        try { c.publish(TOPIC_PREFIX + rc, '', { qos: 0, retain: true }); } catch(e) {}
+      }
+      setTimeout(function () { try { c.end(true); } catch(e) {} }, 200);
+    } else {
+      try { c.end(true); } catch(e) {}
+    }
   }
 
-  // ── Build PeerJS config ───────────────────────────────────
-  // On localhost: use the local PeerJS signaling server (proxied by Vite).
-  // In production: use the public PeerJS server with TURN relay credentials.
-  async function getPeerCfg() {
-    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-
-    if (isLocal) {
-      return {
-        host: location.hostname,
-        port: Number(location.port) || 5173,
-        path: '/peerjs',
-        secure: false,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        }
-      };
+  function sendMsg(data) {
+    if (mqttClient && mqttClient.connected && roomCode) {
+      mqttClient.publish(TOPIC_PREFIX + roomCode,
+        JSON.stringify({ from: myRole, type: 'msg', data: data }), { qos: 0 });
     }
-
-    // Production: use Google STUN + multiple free public TURN relays.
-    // openrelay.metered.ca supports static HMAC-SHA1 credentials via openrelayprojectsecret.
-    // freeturn.net is a secondary fallback with no-auth TURN on port 3478.
-    const secret = 'openrelayprojectsecret';
-    const expiry = Math.floor(Date.now() / 1000) + 86400; // 24 h
-    const username = String(expiry) + ':cardlogy';
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw', enc.encode(secret),
-      { name: 'HMAC', hash: 'SHA-1' },
-      false, ['sign']
-    );
-    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(username));
-    const credential = btoa(String.fromCharCode(...new Uint8Array(sig)));
-
-    return {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun.cloudflare.com:3478' },
-          // openrelay TURN — UDP + TCP on 80 and 443
-          { urls: 'turn:openrelay.metered.ca:80',               username, credential },
-          { urls: 'turn:openrelay.metered.ca:443',              username, credential },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username, credential },
-          { urls: 'turn:openrelay.metered.ca:80?transport=tcp',  username, credential },
-          // staticauth variant (alternate endpoint same service)
-          { urls: 'turn:staticauth.openrelay.metered.ca:80',                username, credential },
-          { urls: 'turn:staticauth.openrelay.metered.ca:443?transport=tcp',  username, credential },
-        ]
-      }
-    };
   }
 
   // ── Sanitize incoming text to prevent XSS ────────────────
@@ -544,108 +521,87 @@
     }[c]));
   }
 
-  // ── Wire up a connection (host side only) ─────────────────
-  function wireConnection(c) {
-    conn = c;
-
-    function sendHello() {
-      conn.send({ type: 'hello', name: myName });
-    }
-
-    // The connection may already be open by the time this runs
-    if (c.open) {
-      sendHello();
-    } else {
-      conn.on('open', sendHello);
-    }
-
-    conn.on('data', function (data) {
-      if (!data || typeof data !== 'object') return;
-      if (data.type === 'hello') {
-        const safeName = sanitize(String(data.name || 'Opponent').slice(0, 20));
-        fillSlot2(safeName);
-      }
-    });
-
-    conn.on('close', function () {
-      clearSlot2();
-    });
-
-    conn.on('error', function (err) {
-      console.error('Connection error:', err);
-      clearSlot2();
-    });
-  }
-
   // ── Create lobby ──────────────────────────────────────────
-  createBtn.addEventListener('click', async function () {
+  createBtn.addEventListener('click', function () {
     const name = getName(); if (!name) return;
-    myName  = name;
-    isHost  = true;
+    myName = name;
 
     createBtn.disabled = true;
     createBtn.textContent = 'Creating…';
 
-    const peerCfg = await getPeerCfg();
-    peer = new Peer(undefined, peerCfg);
+    destroyPeer();
+    isHost = true;
+    myRole = 'host';
+    var rc = roomCode = Math.random().toString(36).slice(2, 8).toUpperCase();
 
-    var reconnectCount = 0;
-
-    peer.on('open', function (id) {
-      reconnectCount = 0;
-      createBtn.disabled = false;
-      createBtn.textContent = 'Create Lobby';
-
-      // Restore status dot / label after a reconnect
-      const dot = connStatus.querySelector('.status-dot');
-      dot.className = 'status-dot ' + (conn && conn.open ? 'connected' : 'waiting');
-      connLabel.textContent = conn && conn.open ? 'Connected' : 'Waiting…';
-
-      // Populate host slot
-      name1.textContent = myName;
-      avatar1.textContent = initial(myName);
-
-      // Show room code
-      displayCode.textContent = id;
-      roomCodeSection.hidden = false;
-
-      if (!conn || !conn.open) setConnected(false);
-      showLobby();
+    mqttClient = window.mqtt.connect(MQTT_BROKER, {
+      clientId: 'cg-' + Math.random().toString(36).slice(2, 12),
+      clean: true,
+      connectTimeout: 15000,
+      reconnectPeriod: 0,
+      will: {
+        topic: TOPIC_PREFIX + rc,
+        payload: JSON.stringify({ from: 'host', type: 'bye' }),
+        qos: 1, retain: false,
+      },
     });
 
-    peer.on('connection', function (c) {
-      // Only allow one guest
-      if (conn && conn.open) { c.close(); return; }
-      wireConnection(c);
-    });
-
-    peer.on('disconnected', function () {
-      if (peer.destroyed) return;
-      if (reconnectCount >= 4) {
-        // Give up after 4 attempts
-        const dot = connStatus.querySelector('.status-dot');
-        dot.className = 'status-dot waiting';
-        connLabel.textContent = 'Lobby offline';
-        waitingMsg.textContent = 'Lost connection to signaling server — your room code is no longer valid. Leave and create a new lobby.';
-        waitingMsg.hidden = false;
-        return;
-      }
-      reconnectCount++;
-      connLabel.textContent = 'Reconnecting…';
-      waitingMsg.textContent = 'Lost connection to signaling server — reconnecting… (attempt ' + reconnectCount + ')';
-      waitingMsg.hidden = false;
-      // Exponential backoff: 1s, 2s, 4s, 8s
-      setTimeout(function () {
-        if (!peer.destroyed) peer.reconnect();
-      }, Math.min(1000 * Math.pow(2, reconnectCount - 1), 8000));
-    });
-
-    peer.on('error', function (err) {
-      console.error('Peer error:', err);
-      // Don't reset the create button if we're already in the lobby
+    mqttClient.on('error', function (err) {
+      console.error('MQTT error:', err);
       if (!lobbyView.classList.contains('active')) {
         createBtn.disabled = false;
         createBtn.textContent = 'Create Lobby';
+      }
+    });
+
+    mqttClient.on('connect', function () {
+      mqttClient.subscribe(TOPIC_PREFIX + rc, { qos: 1 }, function (err) {
+        if (err) {
+          createBtn.disabled = false;
+          createBtn.textContent = 'Create Lobby';
+          return;
+        }
+        // Publish retained announce — guests receive it instantly on subscribe
+        mqttClient.publish(TOPIC_PREFIX + rc,
+          JSON.stringify({ from: 'host', type: 'announce', name: myName }),
+          { qos: 1, retain: true });
+        createBtn.disabled = false;
+        createBtn.textContent = 'Create Lobby';
+        name1.textContent = myName;
+        avatar1.textContent = initial(myName);
+        displayCode.textContent = rc;
+        roomCodeSection.hidden = false;
+        setConnected(false);
+        showLobby();
+      });
+    });
+
+    mqttClient.on('message', function (t, buf) {
+      var msg;
+      try { msg = JSON.parse(buf.toString()); } catch { return; }
+      if (!msg || msg.from === 'host') return; // ignore own messages
+      if (msg.type === 'join') {
+        if (guestPresent) {
+          mqttClient.publish(TOPIC_PREFIX + rc,
+            JSON.stringify({ from: 'host', type: 'full' }), { qos: 0 });
+          return;
+        }
+        guestPresent = true;
+        fillSlot2(sanitize(String(msg.name || 'Guest').slice(0, 20)));
+        mqttClient.publish(TOPIC_PREFIX + rc,
+          JSON.stringify({ from: 'host', type: 'hello', name: myName }), { qos: 1 });
+      } else if (msg.type === 'bye') {
+        guestPresent = false;
+        clearSlot2();
+      }
+    });
+
+    mqttClient.on('close', function () {
+      if (mqttClient === null) return; // intentional close via destroyPeer
+      if (lobbyView.classList.contains('active')) {
+        connLabel.textContent = 'Disconnected';
+        waitingMsg.textContent = 'Lost connection. Leave and create a new lobby.';
+        waitingMsg.hidden = false;
       }
     });
   });
@@ -657,122 +613,122 @@
   });
 
   // ── Join lobby ────────────────────────────────────────────
-  joinBtn.addEventListener('click', async function () {
+  joinBtn.addEventListener('click', function () {
     const name = getName(); if (!name) return;
-    const code = roomInput.value.trim();
+    const code = roomInput.value.trim().toUpperCase();
     if (!code) { roomError.hidden = false; roomInput.focus(); return; }
+    roomError.textContent = 'Invalid or missing room code.';
     roomError.hidden = true;
 
     myName = name;
-    isHost = false;
 
     joinBtn.disabled = true;
     joinBtn.textContent = 'Joining…';
 
     destroyPeer();
+    isHost = false;
+    myRole = 'guest';
+    roomCode = code;
 
-    const peerCfg = await getPeerCfg();
-    peer = new Peer(undefined, peerCfg);
-
-    var joinTimeout = setTimeout(function () {
-      roomError.textContent = 'Could not reach the host — NAT/firewall is blocking the connection. Ask the host to recreate the lobby and try again.';
-      roomError.hidden = false;
+    var joinTimer = setTimeout(function () {
       joinBtn.disabled = false;
       joinBtn.textContent = 'Join';
+      roomError.textContent = 'Room not found. Check the code or ask the host to recreate the lobby.';
+      roomError.hidden = false;
       destroyPeer();
-    }, 30000);
+    }, 10000);
 
-    peer.on('open', function () {
-      const c = peer.connect(code, { reliable: true });
-      conn = c;
+    mqttClient = window.mqtt.connect(MQTT_BROKER, {
+      clientId: 'cg-' + Math.random().toString(36).slice(2, 12),
+      clean: true,
+      connectTimeout: 15000,
+      reconnectPeriod: 0,
+      will: {
+        topic: TOPIC_PREFIX + code,
+        payload: JSON.stringify({ from: 'guest', type: 'bye' }),
+        qos: 1, retain: false,
+      },
+    });
 
-      // Monitor ICE state to detect failure early (before the 30s timeout)
-      function attachIceMonitor() {
-        var pc = c.peerConnection;
-        if (!pc) return;
-        var iceRestarted = false;
-        pc.addEventListener('iceconnectionstatechange', function () {
-          if (pc.iceConnectionState === 'failed') {
-            if (!iceRestarted) {
-              // Attempt ICE restart once before giving up
-              iceRestarted = true;
-              try { pc.restartIce(); } catch(e) { /* not supported */ }
-              return;
-            }
-            clearTimeout(joinTimeout);
-            roomError.textContent = 'Direct connection failed (NAT/firewall). Both players need a working TURN relay. Try again or switch networks.';
-            roomError.hidden = false;
-            joinBtn.disabled = false;
-            joinBtn.textContent = 'Join';
-            destroyPeer();
-          }
-        });
-      }
-      if (c.peerConnection) {
-        attachIceMonitor();
-      } else {
-        setTimeout(attachIceMonitor, 200);
-      }
+    mqttClient.on('error', function (err) {
+      clearTimeout(joinTimer);
+      console.error('MQTT error:', err);
+      joinBtn.disabled = false;
+      joinBtn.textContent = 'Join';
+      roomError.textContent = 'Could not connect to broker. Check your internet.';
+      roomError.hidden = false;
+    });
 
-      c.on('open', function () {
-        clearTimeout(joinTimeout);
+    mqttClient.on('connect', function () {
+      mqttClient.subscribe(TOPIC_PREFIX + code, { qos: 1 }, function (err) {
+        if (err) {
+          clearTimeout(joinTimer);
+          joinBtn.disabled = false;
+          joinBtn.textContent = 'Join';
+          roomError.textContent = 'Subscribe failed. Try again.';
+          roomError.hidden = false;
+        }
+        // Retained 'announce' arrives immediately if host is online
+        // joinTimer fires after 10s if no message arrives at all
+      });
+    });
+
+    mqttClient.on('message', function (t, buf) {
+      var msg;
+      try { msg = JSON.parse(buf.toString()); } catch { return; }
+      if (!msg || msg.from !== 'host') return; // only handle host messages
+
+      if (msg.type === 'announce') {
+        // Host is live — send our join request
+        mqttClient.publish(TOPIC_PREFIX + code,
+          JSON.stringify({ from: 'guest', type: 'join', name: myName }), { qos: 1 });
+
+      } else if (msg.type === 'hello') {
+        clearTimeout(joinTimer);
         joinBtn.disabled = false;
         joinBtn.textContent = 'Join';
-
-        // Guest (me) in slot2, host slot1 filled once we get their hello
-        name1.textContent = '…';
-        avatar1.textContent = '?';
+        var hostName = sanitize(String(msg.name || 'Host').slice(0, 20));
+        name1.textContent = hostName;
+        avatar1.textContent = initial(hostName);
         name2.innerHTML = '';
         name2.textContent = myName;
         avatar2.textContent = initial(myName);
         badge2.hidden = false;
-
         roomCodeSection.hidden = true;
         showLobby();
+        setConnected(true);
 
-        c.send({ type: 'hello', name: myName });
-      });
-
-      c.on('data', function (data) {
-        if (!data || typeof data !== 'object') return;
-        if (data.type === 'hello') {
-          const safeName = sanitize(String(data.name || 'Host').slice(0, 20));
-          name1.textContent = safeName;
-          avatar1.textContent = initial(safeName);
-          setConnected(true);
-        }
-      });
-
-      c.on('close', function () {
-        clearSlot2();
-      });
-
-      c.on('error', function (err) {
-        clearTimeout(joinTimeout);
-        console.error('Connection error:', err);
-        roomError.textContent = 'Could not connect. Check the room code.';
-        roomError.hidden = false;
+      } else if (msg.type === 'full') {
+        clearTimeout(joinTimer);
         joinBtn.disabled = false;
         joinBtn.textContent = 'Join';
-      });
+        roomError.textContent = 'This lobby is already full.';
+        roomError.hidden = false;
+        destroyPeer();
+
+      } else if (msg.type === 'bye') {
+        if (lobbyView.classList.contains('active')) {
+          clearSlot2();
+        } else {
+          clearTimeout(joinTimer);
+          joinBtn.disabled = false;
+          joinBtn.textContent = 'Join';
+          roomError.textContent = 'Host closed the lobby.';
+          roomError.hidden = false;
+          destroyPeer();
+        }
+      }
     });
 
-    peer.on('error', function (err) {
-      clearTimeout(joinTimeout);
-      console.error('Peer error:', err);
-      let msg = 'Connection failed. Try again.';
-      if (err.type === 'peer-unavailable') {
-        msg = 'Room not found. The host may have closed their lobby.';
-      } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') {
-        msg = 'Network error. Check your connection and try again.';
-      } else if (err.type === 'unavailable-id') {
-        msg = 'Invalid room code format.';
+    mqttClient.on('close', function () {
+      if (mqttClient === null) return; // intentional close via destroyPeer
+      clearTimeout(joinTimer);
+      if (lobbyView.classList.contains('active')) {
+        clearSlot2();
+      } else {
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Join';
       }
-      roomError.textContent = msg;
-      roomError.hidden = false;
-      joinBtn.disabled = false;
-      joinBtn.textContent = 'Join';
-      destroyPeer();
     });
   });
 

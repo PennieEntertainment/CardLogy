@@ -6,13 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "relay": "node relay.mjs"
   },
   "devDependencies": {
     "vite": "^6.2.5"
-  },
-  "dependencies": {
-    "peer": "^1.0.2",
-    "peerjs": "^1.5.4"
   }
 }
