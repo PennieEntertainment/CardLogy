@@ -673,7 +673,8 @@
 
   <script>
     // ── Constants ──────────────────────────────────────────
-    const STORAGE_KEY = 'cardlogy_cards_v1';
+    const API        = '/api/cards';   // relay write endpoint (local dev)
+    const CARDS_JSON = './cards.json'; // static read (GitHub Pages + local)
 
     const KEYWORDS = [
       'Taunt', 'Charge', 'Rush', 'Divine Shield', 'Stealth', 'Poisonous',
@@ -690,34 +691,43 @@
     const TYPE_EMOJI = { minion: '🗡️', spell: '✨' };
 
     // ── State ──────────────────────────────────────────────
-    let db = loadDB();
+    let db = [];
     let editingId = null;
     let selectedKw = new Set();
     let picX = 50, picY = 50;  // focal point %
 
-    // ── Persistence ────────────────────────────────────────
-    function loadDB() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []; }
-      catch { return []; }
+    // ── Server API ─────────────────────────────────────────
+    async function loadDB() {
+      try {
+        const res = await fetch(CARDS_JSON);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        db = await res.json();
+      } catch (e) {
+        console.error('Could not load cards:', e);
+        db = [];
+      }
+      renderGrid();
     }
 
-    function saveDB() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-      } catch (e) {
-        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-          alert('Storage full! Your browser\'s local storage is full. Try removing cards with large images first.');
-        } else {
-          throw e;
-        }
-      }
+    async function pushCard(card) {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(card),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function deleteCard(id) {
+      const res = await fetch(`${API}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     }
 
     function genId() {
       return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     }
 
-    // ── Keyword highlighting (XSS-safe) ───────────────────
     function escapeHtml(str) {
       return str.replace(/[&<>"']/g, c => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -1010,9 +1020,10 @@
       return card;
     }
 
-    function saveCard(picOverride) {
+    async function saveCard(picOverride) {
       try {
         const card = buildCard(picOverride);
+        await pushCard(card);
 
         if (editingId) {
           const idx = db.findIndex(c => c.id === editingId);
@@ -1021,7 +1032,6 @@
           db.push(card);
         }
 
-        saveDB();
         renderGrid();
         closeModal();
       } catch (err) {
@@ -1044,17 +1054,19 @@
     function importDB(file) {
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = e => {
+      reader.onload = async e => {
         try {
           const data = JSON.parse(e.target.result);
           if (!Array.isArray(data)) { alert('Invalid format: expected a JSON array.'); return; }
           const existing = new Set(db.map(c => c.id));
           const newCards = data.filter(c => c && typeof c === 'object' && c.id && !existing.has(c.id));
-          db.push(...newCards);
-          saveDB();
+          for (const card of newCards) {
+            await pushCard(card);
+            db.push(card);
+          }
           renderGrid();
           alert(`Imported ${newCards.length} card${newCards.length !== 1 ? 's' : ''}.`);
-        } catch { alert('Could not parse the JSON file.'); }
+        } catch { alert('Could not import cards.'); }
       };
       reader.readAsText(file);
     }
@@ -1134,12 +1146,16 @@
       }
     });
 
-    document.getElementById('btnDeleteCard').addEventListener('click', () => {
+    document.getElementById('btnDeleteCard').addEventListener('click', async () => {
       if (editingId && confirm('Delete this card? This cannot be undone.')) {
-        db = db.filter(c => c.id !== editingId);
-        saveDB();
-        renderGrid();
-        closeModal();
+        try {
+          await deleteCard(editingId);
+          db = db.filter(c => c.id !== editingId);
+          renderGrid();
+          closeModal();
+        } catch (err) {
+          alert('Could not delete card: ' + err.message);
+        }
       }
     });
 
@@ -1161,8 +1177,8 @@
       if (e.target === document.getElementById('modalOverlay')) closeModal();
     });
 
-    // ── Boot ───────────────────────────────────────────────
-    renderGrid();
+    // Boot
+    loadDB();
   </script>
 </body>
 </html>

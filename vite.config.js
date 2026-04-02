@@ -7,4 +7,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
   },
+  server: {
+    proxy: {
+      // /api/cards → relay server (port 8080)
+      '/api': {
+        target: 'http://localhost:8080',
+        rewrite: path => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 })

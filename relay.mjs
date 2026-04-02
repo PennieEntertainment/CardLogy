@@ -24,6 +24,37 @@
 
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CARDS_FILE = join(__dirname, 'cards.json');
+
+// ── Card storage ───────────────────────────────────────
+let cards = [];
+if (existsSync(CARDS_FILE)) {
+  try { cards = JSON.parse(readFileSync(CARDS_FILE, 'utf8')); } catch { cards = []; }
+}
+
+function persistCards() {
+  writeFileSync(CARDS_FILE, JSON.stringify(cards, null, 2), 'utf8');
+}
+
+function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { reject(e); } });
+    req.on('error', reject);
+  });
+}
 
 const PORT = process.env.PORT || 8080;
 const rooms = new Map(); // code -> { host, guest }
@@ -107,8 +138,54 @@ function attachClient(ws) {
   });
 }
 
-const server = createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+const server = createServer(async (req, res) => {
+  setCORS(res);
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204); res.end(); return;
+  }
+
+  const pathname = new URL(req.url, 'http://x').pathname;
+
+  // GET /cards
+  if (req.method === 'GET' && pathname === '/cards') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(cards)); return;
+  }
+
+  // POST /cards — upsert a single card
+  if (req.method === 'POST' && pathname === '/cards') {
+    try {
+      const card = await readBody(req);
+      if (!card || typeof card !== 'object' || !card.id) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid card' })); return;
+      }
+      const idx = cards.findIndex(c => c.id === card.id);
+      if (idx !== -1) cards[idx] = card; else cards.push(card);
+      persistCards();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(card));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // DELETE /cards/:id
+  const delMatch = pathname.match(/^\/cards\/(.+)$/);
+  if (req.method === 'DELETE' && delMatch) {
+    const id = decodeURIComponent(delMatch[1]);
+    const before = cards.length;
+    cards = cards.filter(c => c.id !== id);
+    persistCards();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, deleted: before - cards.length })); return;
+  }
+
+  // Default
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('CardLogy Relay OK');
 });
 
