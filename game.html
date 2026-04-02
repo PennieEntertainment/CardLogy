@@ -962,6 +962,7 @@
 
   // ─── MQTT ─────────────────────────────────────────────────
   var mqtt = null;
+  var mqttSubscribed = false; // true once SUBACK received
 
   function connectMQTT() {
     if (!roomCode) return; // standalone / test mode
@@ -973,23 +974,34 @@
     });
 
     mqtt.on('connect', function () {
-      mqtt.subscribe(TOPIC_PREFIX + roomCode, { qos: 0 });
+      // QoS 1 subscribe so the broker confirms we are ready before the host
+      // advertises the first turn.
+      mqtt.subscribe(TOPIC_PREFIX + roomCode, { qos: 1 }, function (err) {
+        if (err) { console.error('[MQTT] subscribe error', err); return; }
+        mqttSubscribed = true;
+        // Signal the init() handler that we're ready to start
+        onMqttReady();
+      });
+    });
+
+    mqtt.on('error', function (err) {
+      console.error('[MQTT] error', err);
     });
 
     mqtt.on('message', function (t, buf) {
       var msg;
       try { msg = JSON.parse(buf.toString()); } catch { return; }
       if (!msg || msg.from === myRole) return; // ignore own messages
-      if (msg.type === 'msg' && msg.data) {
-        handleNetMsg(msg.data);
-      }
+      // Ignore retained lobby messages (announce, bye, start, etc.)
+      if (msg.type !== 'msg') return;
+      if (msg.data) handleNetMsg(msg.data);
     });
   }
 
   function sendNet(data) {
     if (!mqtt || !mqtt.connected || !roomCode) return;
     mqtt.publish(TOPIC_PREFIX + roomCode,
-      JSON.stringify({ from: myRole, type: 'msg', data: data }), { qos: 0 });
+      JSON.stringify({ from: myRole, type: 'msg', data: data }), { qos: 1 });
   }
 
   function handleNetMsg(data) {
@@ -1008,6 +1020,11 @@
         receiveSyncOpp(data);
         break;
     }
+  }
+
+  function receiveSyncOpp(data) {
+    // Placeholder — future full-state sync can be added here
+    if (!data) return;
   }
 
   // ─── Dummy deck (placeholder until real cards are ready) ──
@@ -1411,12 +1428,11 @@
 
   function receiveAttack(data) {
     if (data.targetType === 'minion') {
-      // data describes what happened from opponent's perspective
-      // Our field = their opp.field; their field = our opp.field
       var theirMinion = gs.opp.field[data.attackerIdx];
       var ourMinion   = gs.me.field[data.targetIdx];
-      if (theirMinion) { theirMinion.sleeping = true; theirMinion.hp = theirMinion.hp - (data.defAtk || 0); }
-      if (ourMinion)   { ourMinion.hp = data.defHpAfter != null ? ourMinion.maxHp - (ourMinion.maxHp - data.defHpAfter) : ourMinion.hp - (data.atkAtk || 0); }
+      // Use the authoritative HP values sent by the attacker's client
+      if (theirMinion) { theirMinion.sleeping = true; theirMinion.hp = data.atkHp != null ? data.atkHp : theirMinion.hp - (data.defAtk || 0); }
+      if (ourMinion)   { ourMinion.hp = data.defHpAfter != null ? data.defHpAfter : ourMinion.hp - (data.atkAtk || 0); }
       gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
       gs.me.field  = gs.me.field.filter(function (m) { return m.hp > 0; });
     } else if (data.targetType === 'hero') {
@@ -1485,9 +1501,23 @@
   }
 
   // ─── Init ────────────────────────────────────────────────────
-  function init() {
-    connectMQTT();
+  var _initStarted = false;
 
+  // Called once MQTT subscription is confirmed (or immediately in standalone mode)
+  function onMqttReady() {
+    if (_initStarted) return;
+    _initStarted = true;
+    // Host: wait an extra 1.5 s to give the guest time to also subscribe,
+    // then kick off turn 1.  Guest: just set the initial view — their turn
+    // starts when they receive the host’s first end-turn message.
+    if (myRole === 'host') {
+      setTimeout(function () { startTurn('host'); }, 1500);
+    } else {
+      startTurn('host'); // shows “Opponent’s Turn” for the guest immediately
+    }
+  }
+
+  function init() {
     // Deal opening hands
     drawCard('me',  3);
     // Opponent's simulated hand
@@ -1500,10 +1530,11 @@
 
     renderAll();
 
-    // First turn starts after a short delay so players can see the board
-    setTimeout(function () {
-      startTurn('host'); // host always goes first
-    }, 1000);
+    connectMQTT();
+
+    // Fallback: if MQTT never connects (standalone / network error),
+    // start the turn after 4 seconds so the game is still playable solo.
+    setTimeout(function () { onMqttReady(); }, 4000);
   }
 
   init();

@@ -810,7 +810,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.3.4</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.3.5</div>
 
 <div class="card">
   <div class="logo">
@@ -1562,6 +1562,7 @@
         joinBtn.disabled = false;
         joinBtn.textContent = 'Join';
         var hostName = sanitize(String(msg.name || 'Host').slice(0, 20));
+        opponentName = hostName; // record so it's saved in the game session
         name1.textContent = hostName;
         avatar1.textContent = initial(hostName);
         name2.innerHTML = '';
@@ -1672,15 +1673,27 @@
           }));
         } catch (e) { /* storage full or blocked — proceed anyway */ }
 
-        // Notify the guest so they also navigate to game.html
-        try {
-          if (mqttClient && mqttClient.connected && roomCode) {
-            mqttClient.publish(TOPIC_PREFIX + roomCode,
-              JSON.stringify({ from: 'host', type: 'start' }), { qos: 1 });
-          }
-        } catch (e) { /* publish failed — still navigate */ }
+        // Notify the guest then navigate — wait for broker to confirm receipt
+        // so the guest definitely receives 'start' before the WebSocket closes.
+        var _navigated = false;
+        function _goToGame() {
+          if (!_navigated) { _navigated = true; window.location.href = 'game.html'; }
+        }
 
-        window.location.href = 'game.html';
+        if (mqttClient && mqttClient.connected && roomCode) {
+          try {
+            mqttClient.publish(
+              TOPIC_PREFIX + roomCode,
+              JSON.stringify({ from: 'host', type: 'start' }),
+              { qos: 1 },
+              function () { _goToGame(); }  // navigate only after PUBACK
+            );
+          } catch (e) { /* fall through */ }
+          // Hard timeout: navigate after 3 s even if PUBACK never arrives
+          setTimeout(_goToGame, 3000);
+        } else {
+          _goToGame();
+        }
       })
       .catch(function () {
         startBtn.disabled = false; // re-enable if something unexpected failed
