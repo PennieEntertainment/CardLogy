@@ -1580,10 +1580,21 @@
     showSetup();
   });
 
-  // ── Start game placeholder ────────────────────────────────
+  // ── Start game ───────────────────────────────────────────
   startBtn.addEventListener('click', function () {
-    // Game logic to be added later
-    alert('Game starting! (Logic to be added)');
+    // Persist game session so game.html can read it
+    var deck = [];
+    try { deck = JSON.parse(localStorage.getItem('cl_deck_v1') || '[]'); } catch { deck = []; }
+
+    sessionStorage.setItem('cl_game', JSON.stringify({
+      myName:   myName,
+      oppName:  opponentName,
+      myRole:   myRole,
+      roomCode: roomCode,
+      myDeck:   deck,
+    }));
+
+    window.location.href = 'game.html';
   });
 
   // ── Clear errors on input ─────────────────────────────────

@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CardLogy — Game</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --felt:       #1a472a;
+      --felt-dark:  #122f1c;
+      --felt-light: #1e5535;
+      --rail:       #0d2010;
+      --gold:       #c9a84c;
+      --gold2:      #e8c97a;
+      --text:       #e6edf3;
+      --muted:      #8b949e;
+      --red:        #f85149;
+      --blue-gem:   #1a6abf;
+      --empty-gem:  #101c2e;
+      --border:     #30363d;
+      --surface:    #161b22;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* ─── Board ─────────────────────────────────────────────── */
+    #board {
+      width: 100vw;
+      height: 100vh;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% 50%, #1e5535 0%, #122f1c 100%);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle wood rail lines */
+    #board::before, #board::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #0a1a0a, #1a3a1a, #0a1a0a);
+      z-index: 10;
+    }
+    #board::before { top: 0; }
+    #board::after  { bottom: 0; }
+
+    /* ─── Info bars (top / bottom) ──────────────────────────── */
+    .info-bar {
+      flex-shrink: 0;
+      height: 88px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 18px;
+      background: rgba(0,0,0,0.45);
+      border-bottom: 2px solid rgba(0,0,0,0.5);
+      z-index: 5;
+      position: relative;
+    }
+    .info-bar.bottom {
+      border-bottom: none;
+      border-top: 2px solid rgba(0,0,0,0.5);
+      flex-direction: row-reverse; /* mirror layout for bottom player */
+    }
+
+    /* ─── Hero Portrait ─────────────────────────────────────── */
+    .hero-portrait {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #3a3a4a, #1a1a2a);
+      border: 3px solid var(--gold);
+      box-shadow:
+        0 0 0 2px rgba(0,0,0,0.8),
+        0 4px 16px rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+    .hero-portrait:hover {
+      box-shadow:
+        0 0 0 2px rgba(0,0,0,0.8),
+        0 0 18px rgba(201,168,76,0.6),
+        0 4px 16px rgba(0,0,0,0.7);
+    }
+    .hero-portrait.attackable {
+      box-shadow:
+        0 0 0 3px #f59e0b,
+        0 0 20px rgba(245,158,11,0.7),
+        0 4px 16px rgba(0,0,0,0.7);
+      animation: pulse-gold 1.2s ease-in-out infinite;
+    }
+
+    /* HP Orb on hero portrait */
+    .hp-orb {
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 34px; height: 34px;
+      padding: 0 4px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ff6b6b, #c0392b 55%, #6a1010);
+      border: 2px solid #ffb3b3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.7);
+    }
+    .hp-orb.low {
+      background: radial-gradient(circle at 35% 30%, #ff3030, #8b0000 55%, #3a0000);
+      animation: pulse-red 0.8s ease-in-out infinite;
+    }
+
+    /* Player name */
+    .player-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--gold2);
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+    }
+
+    /* Deck counter */
+    .deck-count {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      color: var(--muted);
+    }
+    .deck-count .deck-pile {
+      width: 32px; height: 42px;
+      border-radius: 5px;
+      background: linear-gradient(170deg, #1a2840, #0d1825);
+      border: 2px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 900;
+      color: var(--gold2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    }
+    .deck-count .deck-lbl {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ─── Mana Crystals ─────────────────────────────────────── */
+    .mana-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .mana-bar {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .crystal {
+      width: 20px; height: 20px;
+      border-radius: 3px;
+      transform: rotate(45deg);
+      border: 1.5px solid transparent;
+      transition: background 0.25s, box-shadow 0.25s;
+      flex-shrink: 0;
+    }
+    .crystal.filled {
+      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
+      border-color: #aedaf7;
+      box-shadow: 0 0 6px rgba(138,196,245,0.5);
+    }
+    .crystal.empty {
+      background: radial-gradient(circle at 35% 30%, #1e2d42, #101c2e 55%, #080f1c);
+      border-color: #2a3d55;
+    }
+    .crystal.overloaded {
+      background: radial-gradient(circle at 35% 30%, #7a4a8a, #3a1260 55%, #1a0a30);
+      border-color: #b060c0;
+    }
+    .mana-text {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #8ac4f5;
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── Hand areas ────────────────────────────────────────── */
+    .hand-wrap {
+      flex-shrink: 0;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 0;
+      position: relative;
+      z-index: 4;
+    }
+
+    .hand {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: -8px; /* cards overlap */
+      height: 80px;
+      position: relative;
+    }
+
+    /* Generic card back / placeholder */
+    .card-in-hand {
+      width: 58px; height: 76px;
+      border-radius: 8px;
+      border: 2px solid;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      flex-shrink: 0;
+    }
+    .card-in-hand:nth-child(n) { margin-left: -10px; }
+    .card-in-hand:first-child  { margin-left: 0; }
+
+    /* Opponent hand — face-down backs */
+    .card-back {
+      background: linear-gradient(135deg, #1a2840 0%, #0d1825 100%);
+      border-color: var(--gold);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .card-back::after {
+      content: '⚜';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      color: rgba(201,168,76,0.35);
+    }
+
+    /* Player hand — visible cards */
+    .card-playable {
+      background: linear-gradient(170deg, #1a2840 0%, #0d1825 100%);
+      border-color: var(--gold);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.6);
+    }
+    .card-playable:hover {
+      transform: translateY(-14px) scale(1.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+      z-index: 99;
+    }
+    .card-playable.can-play { border-color: #4ade80; box-shadow: 0 0 10px rgba(74,222,128,0.4); }
+    .card-playable.cannot-play { opacity: 0.55; cursor: not-allowed; }
+    .card-playable.cannot-play:hover { transform: none; }
+
+    /* Card cost gem (top-left) */
+    .card-gem {
+      position: absolute;
+      top: -7px; left: -7px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
+      border: 1.5px solid #aedaf7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 900;
+      color: #fff;
+      z-index: 5;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+    /* Card mini art */
+    .card-art {
+      position: absolute;
+      top: 4px; left: 4px; right: 4px;
+      height: 36px;
+      background: #111827;
+      border-radius: 4px;
+      overflow: hidden;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.5;
+    }
+    .card-name {
+      position: absolute;
+      bottom: 20px; left: 2px; right: 2px;
+      font-size: 0.38rem;
+      font-weight: 800;
+      text-align: center;
+      color: var(--gold2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-desc {
+      position: absolute;
+      bottom: 2px; left: 2px; right: 2px;
+      font-size: 0.35rem;
+      text-align: center;
+      color: #aaa;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-style: italic;
+    }
+    .card-atk {
+      position: absolute;
+      bottom: -7px; left: -7px;
+      width: 22px; height: 22px;
+      background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
+      border: 1.5px solid #ffe49e;
+      border-radius: 4px;
+      transform: rotate(45deg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 900; color: #fff;
+      z-index: 5;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+    .card-atk span { transform: rotate(-45deg); display: block; }
+    .card-hp {
+      position: absolute;
+      bottom: -7px; right: -7px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
+      border: 1.5px solid #ffb3b3;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 900; color: #fff;
+      z-index: 5;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    /* ─── Battlefield ───────────────────────────────────────── */
+    .battlefield {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .field {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 8px 20px;
+      position: relative;
+      min-height: 0;
+    }
+    .field.opp-field {
+      align-items: flex-end;
+      padding-bottom: 4px;
+    }
+    .field.my-field {
+      align-items: flex-start;
+      padding-top: 4px;
+    }
+
+    /* Drop zone hint */
+    .field-hint {
+      position: absolute;
+      inset: 6px;
+      border-radius: 10px;
+      border: 2px dashed rgba(255,255,255,0.06);
+      pointer-events: none;
+    }
+    .field.my-field .field-hint {
+      border-color: rgba(255,255,255,0.08);
+    }
+    .field.drop-active .field-hint {
+      border-color: rgba(74,222,128,0.4);
+      background: rgba(74,222,128,0.04);
+    }
+
+    /* Empty field label */
+    .field-empty-msg {
+      color: rgba(255,255,255,0.12);
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* Minion card on field */
+    .minion {
+      width: 64px; height: 80px;
+      border-radius: 8px;
+      position: relative;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .minion .minion-art {
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      background: linear-gradient(170deg, #1a2840, #0d1825);
+      border: 2px solid var(--gold);
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+    }
+    .minion:hover { transform: translateY(-6px); z-index: 20; }
+    .minion.can-attack .minion-art {
+      border-color: #f59e0b;
+      box-shadow: 0 0 14px rgba(245,158,11,0.6);
+      animation: pulse-gold 1.2s ease-in-out infinite;
+    }
+    .minion.sleeping .minion-art { filter: brightness(0.5); }
+    .minion .m-atk {
+      position: absolute;
+      bottom: -7px; left: -7px;
+      width: 24px; height: 24px;
+      background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
+      border: 1.5px solid #ffe49e;
+      border-radius: 4px;
+      transform: rotate(45deg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 900; color: #fff;
+      z-index: 5;
+    }
+    .minion .m-atk span { transform: rotate(-45deg); display: block; }
+    .minion .m-hp {
+      position: absolute;
+      bottom: -7px; right: -7px;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
+      border: 1.5px solid #ffb3b3;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 900; color: #fff;
+      z-index: 5;
+    }
+    .minion .m-hp.damaged { color: #ff4444; }
+    .minion .m-name {
+      position: absolute;
+      bottom: 14px; left: 2px; right: 2px;
+      font-size: 0.38rem; font-weight: 800;
+      text-align: center; color: var(--gold2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .minion .m-status {
+      position: absolute;
+      top: -9px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 2px;
+    }
+    .m-badge {
+      background: #1a472a; border: 1px solid var(--gold); border-radius: 3px;
+      font-size: 0.35rem; font-weight: 700; padding: 0 3px; color: var(--gold2);
+      white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    /* ─── Center Divider ────────────────────────────────────── */
+    .center-bar {
+      flex-shrink: 0;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      position: relative;
+      z-index: 6;
+    }
+
+    /* Green rope/divider line */
+    .center-bar::before {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      top: 50%;
+      height: 3px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(0,0,0,0.4) 15%,
+        rgba(0,0,0,0.6) 50%,
+        rgba(0,0,0,0.4) 85%,
+        transparent 100%
+      );
+      transform: translateY(-50%);
+    }
+
+    /* Turn indicator */
+    .turn-indicator {
+      position: relative;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.08);
+      white-space: nowrap;
+    }
+    .turn-indicator.your-turn {
+      color: #4ade80;
+      border-color: rgba(74,222,128,0.3);
+    }
+    .turn-indicator.opp-turn {
+      color: var(--muted);
+    }
+
+    /* ─── End Turn Button ───────────────────────────────────── */
+    #end-turn-btn {
+      position: relative;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      background: none;
+      z-index: 7;
+      transition: transform 0.1s;
+    }
+    #end-turn-btn:active:not(:disabled) { transform: scale(0.95); }
+    #end-turn-btn:disabled { cursor: not-allowed; }
+
+    .end-turn-inner {
+      position: relative;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #0d1117;
+      background: linear-gradient(135deg, #e8c97a, #c9a84c, #b8902a);
+      box-shadow:
+        0 0 0 2px rgba(0,0,0,0.6),
+        0 4px 14px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.25);
+      transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
+    }
+    #end-turn-btn:not(:disabled) .end-turn-inner {
+      animation: glow-gold 2.5s ease-in-out infinite;
+    }
+    #end-turn-btn:disabled .end-turn-inner {
+      background: linear-gradient(135deg, #3a3a3a, #2a2a2a, #1a1a1a);
+      color: #555;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+    }
+    #end-turn-btn:not(:disabled):hover .end-turn-inner {
+      background: linear-gradient(135deg, #f5d98a, #e8c97a, #c9a84c);
+      box-shadow:
+        0 0 0 2px rgba(0,0,0,0.6),
+        0 0 20px rgba(201,168,76,0.6),
+        0 4px 14px rgba(0,0,0,0.5);
+    }
+
+    /* ─── Rope timer ────────────────────────────────────────── */
+    .rope-wrap {
+      position: absolute;
+      left: 10px; right: 10px;
+      bottom: -3px;
+      height: 3px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .rope-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #4ade80, #f59e0b, #f85149);
+      transition: width linear;
+    }
+
+    /* ─── Animations ────────────────────────────────────────── */
+    @keyframes pulse-gold {
+      0%, 100% { box-shadow: 0 0 8px rgba(245,158,11,0.5); }
+      50%       { box-shadow: 0 0 20px rgba(245,158,11,0.9); }
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 6px rgba(248,81,73,0.4); }
+      50%       { box-shadow: 0 0 16px rgba(248,81,73,0.9); }
+    }
+    @keyframes glow-gold {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.5), 0 0 8px rgba(201,168,76,0.2); }
+      50%       { box-shadow: 0 0 0 2px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.5), 0 0 20px rgba(201,168,76,0.5); }
+    }
+    @keyframes slide-in-top {
+      from { transform: translateY(-20px); opacity: 0; }
+      to   { transform: translateY(0);     opacity: 1; }
+    }
+    @keyframes slide-in-bottom {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* ─── Turn banner ───────────────────────────────────────── */
+    #turn-banner {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      pointer-events: none;
+    }
+    #turn-banner .banner-text {
+      background: rgba(0,0,0,0.82);
+      border: 2px solid var(--gold);
+      border-radius: 12px;
+      padding: 18px 48px;
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--gold2);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+      animation: banner-pop 0.4s cubic-bezier(0.22,1,0.36,1);
+    }
+    @keyframes banner-pop {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ─── Damage flash ──────────────────────────────────────── */
+    .damage-flash {
+      animation: dmg-shake 0.35s ease;
+    }
+    @keyframes dmg-shake {
+      0%   { transform: translateX(0); }
+      20%  { transform: translateX(-6px); }
+      40%  { transform: translateX(6px); }
+      60%  { transform: translateX(-4px); }
+      80%  { transform: translateX(4px); }
+      100% { transform: translateX(0); }
+    }
+
+    /* Floating damage numbers */
+    .dmg-popup {
+      position: fixed;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #f85149;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+      pointer-events: none;
+      z-index: 200;
+      animation: float-up 0.9s ease forwards;
+    }
+    .dmg-popup.heal { color: #4ade80; }
+    @keyframes float-up {
+      0%   { transform: translateY(0);    opacity: 1; }
+      100% { transform: translateY(-48px); opacity: 0; }
+    }
+
+    /* ─── Tooltip ───────────────────────────────────────────── */
+    #card-tooltip {
+      position: fixed;
+      z-index: 300;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    #card-tooltip.visible { opacity: 1; }
+    .tt-card {
+      width: 180px;
+      border-radius: 12px;
+      background: linear-gradient(170deg, #1a2840, #0d1825);
+      border: 2px solid var(--gold);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+      padding: 10px;
+      font-size: 0.78rem;
+      color: var(--text);
+    }
+    .tt-card .tt-name {
+      font-weight: 800;
+      color: var(--gold2);
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+    .tt-card .tt-type {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+    .tt-card .tt-desc { line-height: 1.5; font-style: italic; color: #c9d1d9; }
+    .tt-card .tt-stats {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .tt-stat-atk { color: #f59e0b; }
+    .tt-stat-hp  { color: #f87171; }
+
+    /* ─── Game over overlay ─────────────────────────────────── */
+    #game-over {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    #game-over.show { display: flex; }
+    .game-over-box {
+      background: #161b22;
+      border: 2px solid var(--gold);
+      border-radius: 16px;
+      padding: 40px 56px;
+      text-align: center;
+      box-shadow: 0 16px 60px rgba(0,0,0,0.9);
+      animation: banner-pop 0.4s cubic-bezier(0.22,1,0.36,1);
+    }
+    .game-over-title {
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .game-over-title.victory { color: var(--gold2); }
+    .game-over-title.defeat  { color: var(--red); }
+    .game-over-sub { color: var(--muted); margin-bottom: 24px; font-size: 0.9rem; }
+    .game-over-box button {
+      padding: 10px 28px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--gold);
+      color: #0d1117;
+      transition: opacity 0.15s;
+    }
+    .game-over-box button:hover { opacity: 0.88; }
+
+    /* ─── Misc ──────────────────────────────────────────────── */
+    #version-tag {
+      position: fixed;
+      top: 0.5rem; left: 0.75rem;
+      font-family: monospace; font-size: 0.65rem;
+      color: rgba(255,255,255,0.15);
+      pointer-events: none; z-index: 999;
+      letter-spacing: 0.05em;
+    }
+
+    /* Scrollbar on field if many minions */
+    .field { overflow-x: auto; overflow-y: visible; }
+    .field::-webkit-scrollbar { height: 4px; }
+    .field::-webkit-scrollbar-track { background: transparent; }
+    .field::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<div id="version-tag">v0.3.1</div>
+
+<!-- ─── Board ───────────────────────────────────────────────── -->
+<div id="board">
+
+  <!-- ── Opponent Info Bar ──────────────────────────────────── -->
+  <div class="info-bar top" id="opp-info">
+    <div class="hero-portrait" id="opp-hero" title="Opponent hero">
+      🧙
+      <div class="hp-orb" id="opp-hp-orb">30</div>
+    </div>
+    <div>
+      <div class="player-name" id="opp-name">Opponent</div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-top:2px" id="opp-turn-label">…</div>
+    </div>
+    <div style="flex:1"></div>
+    <!-- Opponent mana (mirrored) -->
+    <div class="mana-wrap">
+      <div class="mana-bar" id="opp-mana-bar"></div>
+      <div class="mana-text" id="opp-mana-text">0 / 0</div>
+    </div>
+    <!-- Deck count -->
+    <div class="deck-count">
+      <div class="deck-pile" id="opp-deck-count">30</div>
+      <div class="deck-lbl">Deck</div>
+    </div>
+  </div>
+
+  <!-- ── Opponent Hand ──────────────────────────────────────── -->
+  <div class="hand-wrap" style="animation: slide-in-top 0.4s ease;">
+    <div class="hand" id="opp-hand"></div>
+  </div>
+
+  <!-- ── Battlefield ────────────────────────────────────────── -->
+  <div class="battlefield">
+
+    <!-- Opponent field -->
+    <div class="field opp-field" id="opp-field">
+      <div class="field-hint"></div>
+      <span class="field-empty-msg" id="opp-field-empty">No minions</span>
+    </div>
+
+    <!-- Center bar -->
+    <div class="center-bar">
+      <div class="turn-indicator" id="turn-indicator">Waiting…</div>
+
+      <button id="end-turn-btn" disabled>
+        <div class="end-turn-inner">End Turn</div>
+        <div class="rope-wrap">
+          <div class="rope-fill" id="rope-fill" style="width:100%"></div>
+        </div>
+      </button>
+
+      <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.05em" id="turn-counter">Turn 1</div>
+    </div>
+
+    <!-- Player field -->
+    <div class="field my-field" id="my-field">
+      <div class="field-hint"></div>
+      <span class="field-empty-msg" id="my-field-empty">Play minions here</span>
+    </div>
+
+  </div>
+
+  <!-- ── Player Hand ────────────────────────────────────────── -->
+  <div class="hand-wrap" style="animation: slide-in-bottom 0.4s ease;">
+    <div class="hand" id="my-hand"></div>
+  </div>
+
+  <!-- ── Player Info Bar ────────────────────────────────────── -->
+  <div class="info-bar bottom" id="my-info">
+    <div class="hero-portrait" id="my-hero" title="Your hero">
+      ⚔️
+      <div class="hp-orb" id="my-hp-orb">30</div>
+    </div>
+    <div>
+      <div class="player-name" id="my-name">You</div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-top:2px" id="my-turn-label">…</div>
+    </div>
+    <div style="flex:1"></div>
+    <!-- Player mana -->
+    <div class="mana-wrap">
+      <div class="mana-bar" id="my-mana-bar"></div>
+      <div class="mana-text" id="my-mana-text">0 / 0</div>
+    </div>
+    <!-- Deck count -->
+    <div class="deck-count">
+      <div class="deck-pile" id="my-deck-count">30</div>
+      <div class="deck-lbl">Deck</div>
+    </div>
+  </div>
+
+</div><!-- #board -->
+
+<!-- ─── Turn Banner ──────────────────────────────────────────── -->
+<div id="turn-banner" hidden>
+  <div class="banner-text" id="banner-text">Your Turn</div>
+</div>
+
+<!-- ─── Tooltip ──────────────────────────────────────────────── -->
+<div id="card-tooltip">
+  <div class="tt-card">
+    <div class="tt-name" id="tt-name"></div>
+    <div class="tt-type" id="tt-type"></div>
+    <div class="tt-desc" id="tt-desc"></div>
+    <div class="tt-stats" id="tt-stats"></div>
+  </div>
+</div>
+
+<!-- ─── Game Over ────────────────────────────────────────────── -->
+<div id="game-over">
+  <div class="game-over-box">
+    <div class="game-over-title" id="game-over-title">Victory!</div>
+    <div class="game-over-sub" id="game-over-sub">You defeated your opponent.</div>
+    <button onclick="window.location.href='index.html'">Return to Lobby</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ─── Constants ────────────────────────────────────────────
+  var MAX_HP          = 30;
+  var MAX_MANA        = 10;
+  var MAX_FIELD_SIZE  = 7;
+  var TURN_SECONDS    = 75;
+
+  var MQTT_BROKER  = 'wss://broker.emqx.io:8084/mqtt';
+  var TOPIC_PREFIX = 'cardlogy-v1/';
+
+  // ─── Load session state from lobby ────────────────────────
+  function loadSession() {
+    try { return JSON.parse(sessionStorage.getItem('cl_game') || 'null'); } catch { return null; }
+  }
+
+  var session = loadSession();
+  // If no session (e.g., direct load for testing) use defaults
+  var myName       = (session && session.myName)       || 'Player';
+  var oppName      = (session && session.oppName)      || 'Opponent';
+  var myRole       = (session && session.myRole)       || 'host';  // 'host' | 'guest'
+  var roomCode     = (session && session.roomCode)     || null;
+  var myDeck       = (session && session.myDeck)       || [];
+
+  // Host always goes first
+  var amFirst = (myRole === 'host');
+
+  // ─── Game State ───────────────────────────────────────────
+  var gs = {
+    turn: 1,
+    activeRole: 'host', // who is currently taking their turn
+    me: {
+      hp: MAX_HP,
+      maxMana: 0,
+      mana: 0,
+      deck: myDeck.length > 0 ? [...myDeck] : makeDummyDeck(),
+      hand: [],
+      field: [],
+      deckCount: myDeck.length > 0 ? myDeck.length : 30,
+    },
+    opp: {
+      hp: MAX_HP,
+      maxMana: 0,
+      mana: 0,
+      deck: [],
+      hand: [],
+      field: [],
+      deckCount: 30,
+    },
+    gameOver: false,
+  };
+
+  function isMyTurn() { return gs.activeRole === myRole; }
+
+  // ─── MQTT ─────────────────────────────────────────────────
+  var mqtt = null;
+
+  function connectMQTT() {
+    if (!roomCode) return; // standalone / test mode
+    mqtt = window.mqtt.connect(MQTT_BROKER, {
+      clientId: 'cg-game-' + Math.random().toString(36).slice(2, 12),
+      clean: true,
+      connectTimeout: 15000,
+      reconnectPeriod: 3000,
+    });
+
+    mqtt.on('connect', function () {
+      mqtt.subscribe(TOPIC_PREFIX + roomCode, { qos: 0 });
+    });
+
+    mqtt.on('message', function (t, buf) {
+      var msg;
+      try { msg = JSON.parse(buf.toString()); } catch { return; }
+      if (!msg || msg.from === myRole) return; // ignore own messages
+      if (msg.type === 'msg' && msg.data) {
+        handleNetMsg(msg.data);
+      }
+    });
+  }
+
+  function sendNet(data) {
+    if (!mqtt || !mqtt.connected || !roomCode) return;
+    mqtt.publish(TOPIC_PREFIX + roomCode,
+      JSON.stringify({ from: myRole, type: 'msg', data: data }), { qos: 0 });
+  }
+
+  function handleNetMsg(data) {
+    if (!data || !data.action) return;
+    switch (data.action) {
+      case 'end-turn':
+        receiveEndTurn(data);
+        break;
+      case 'play-minion':
+        receivePlayMinion(data);
+        break;
+      case 'attack':
+        receiveAttack(data);
+        break;
+      case 'sync':
+        receiveSyncOpp(data);
+        break;
+    }
+  }
+
+  // ─── Dummy deck (placeholder until real cards are ready) ──
+  function makeDummyDeck() {
+    var sample = [
+      { id:'d1', name:'Footman',   cost:1, atk:1, hp:2, type:'minion', emoji:'🛡️', desc:'Taunt' },
+      { id:'d2', name:'Wisp',      cost:0, atk:1, hp:1, type:'minion', emoji:'✨', desc:'' },
+      { id:'d3', name:'Murloc',    cost:1, atk:2, hp:1, type:'minion', emoji:'🐟', desc:'Battlecry: +1 ATK' },
+      { id:'d4', name:'Battle Mage',cost:3,atk:3, hp:4, type:'minion', emoji:'🧙', desc:'Spell Power +1' },
+      { id:'d5', name:'Golem',     cost:5, atk:4, hp:7, type:'minion', emoji:'🗿', desc:'Taunt' },
+      { id:'d6', name:'Dragon',    cost:7, atk:6, hp:6, type:'minion', emoji:'🐉', desc:'Charge' },
+      { id:'d7', name:'Knight',    cost:2, atk:2, hp:3, type:'minion', emoji:'⚔️', desc:'' },
+      { id:'d8', name:'Warlock',   cost:4, atk:3, hp:5, type:'minion', emoji:'😈', desc:'Lifesteal' },
+    ];
+    var deck = [];
+    for (var i = 0; i < 30; i++) {
+      deck.push(Object.assign({}, sample[i % sample.length]));
+    }
+    return deck;
+  }
+
+  // ─── DOM refs ─────────────────────────────────────────────
+  var $myName      = document.getElementById('my-name');
+  var $oppName     = document.getElementById('opp-name');
+  var $myHpOrb     = document.getElementById('my-hp-orb');
+  var $oppHpOrb    = document.getElementById('opp-hp-orb');
+  var $myManaBar   = document.getElementById('my-mana-bar');
+  var $oppManaBar  = document.getElementById('opp-mana-bar');
+  var $myManaText  = document.getElementById('my-mana-text');
+  var $oppManaText = document.getElementById('opp-mana-text');
+  var $myHand      = document.getElementById('my-hand');
+  var $oppHand     = document.getElementById('opp-hand');
+  var $myField     = document.getElementById('my-field');
+  var $oppField    = document.getElementById('opp-field');
+  var $myDeckCount = document.getElementById('my-deck-count');
+  var $oppDeckCount= document.getElementById('opp-deck-count');
+  var $endTurnBtn  = document.getElementById('end-turn-btn');
+  var $turnIndicator = document.getElementById('turn-indicator');
+  var $turnCounter   = document.getElementById('turn-counter');
+  var $myTurnLabel   = document.getElementById('my-turn-label');
+  var $oppTurnLabel  = document.getElementById('opp-turn-label');
+  var $turnBanner    = document.getElementById('turn-banner');
+  var $bannerText    = document.getElementById('banner-text');
+  var $gameOver      = document.getElementById('game-over');
+  var $gameOverTitle = document.getElementById('game-over-title');
+  var $gameOverSub   = document.getElementById('game-over-sub');
+  var $ropeFill      = document.getElementById('rope-fill');
+  var $tooltip       = document.getElementById('card-tooltip');
+
+  // ─── Render helpers ────────────────────────────────────────────
+  function renderHp(el, hp) {
+    el.textContent = hp;
+    el.classList.toggle('low', hp <= 10);
+  }
+
+  function renderManaBar(barEl, textEl, cur, max) {
+    barEl.innerHTML = '';
+    for (var i = 0; i < 10; i++) {
+      var gem = document.createElement('div');
+      gem.className = 'crystal ' + (i < max ? (i < cur ? 'filled' : 'empty') : 'empty');
+      if (i >= max) gem.style.opacity = '0.2'; // hidden slots
+      barEl.appendChild(gem);
+    }
+    textEl.textContent = cur + ' / ' + max;
+  }
+
+  function renderHand() {
+    $myHand.innerHTML = '';
+    gs.me.hand.forEach(function (card, idx) {
+      var el = document.createElement('div');
+      el.className = 'card-in-hand card-playable';
+      var affordable = card.cost <= gs.me.mana && isMyTurn() && gs.me.field.length < MAX_FIELD_SIZE;
+      if (affordable) el.classList.add('can-play');
+      else            el.classList.add('cannot-play');
+
+      el.innerHTML =
+        '<div class="card-gem">' + card.cost + '</div>' +
+        '<div class="card-art">' + (card.emoji || '🃏') + '</div>' +
+        '<div class="card-name">' + esc(card.name) + '</div>' +
+        '<div class="card-desc">' + esc(card.desc || '') + '</div>' +
+        (card.type === 'minion'
+          ? '<div class="card-atk"><span>' + card.atk + '</span></div><div class="card-hp">' + card.hp + '</div>'
+          : '');
+
+      el.dataset.idx = idx;
+      if (affordable) {
+        el.addEventListener('click', function () { onPlayCard(+this.dataset.idx); });
+      }
+      el.addEventListener('mouseenter', function (e) { showTooltip(e, card); });
+      el.addEventListener('mouseleave', hideTooltip);
+      $myHand.appendChild(el);
+    });
+  }
+
+  function renderOppHand() {
+    $oppHand.innerHTML = '';
+    for (var i = 0; i < gs.opp.hand.length; i++) {
+      var el = document.createElement('div');
+      el.className = 'card-in-hand card-back';
+      $oppHand.appendChild(el);
+    }
+  }
+
+  function renderField(fieldEl, emptyMsg, minions, isOpp) {
+    // Remove all minion nodes but keep hint + empty msg
+    Array.from(fieldEl.querySelectorAll('.minion')).forEach(function (m) { m.remove(); });
+    var emptyEl = fieldEl.querySelector('.field-empty-msg');
+    if (emptyEl) emptyEl.style.display = minions.length ? 'none' : '';
+
+    minions.forEach(function (minion, idx) {
+      var el = document.createElement('div');
+      el.className = 'minion' + (minion.sleeping ? ' sleeping' : '') + ((!isOpp && !minion.sleeping && isMyTurn()) ? ' can-attack' : '');
+      el.dataset.idx = idx;
+      el.innerHTML =
+        '<div class="minion-art">' + (minion.emoji || '⚔️') + '</div>' +
+        '<div class="m-name">' + esc(minion.name) + '</div>' +
+        '<div class="m-atk"><span>' + minion.atk + '</span></div>' +
+        '<div class="m-hp' + (minion.hp < minion.maxHp ? ' damaged' : '') + '">' + minion.hp + '</div>';
+
+      if (minion.keywords && minion.keywords.length) {
+        var statusEl = document.createElement('div');
+        statusEl.className = 'm-status';
+        minion.keywords.forEach(function (kw) {
+          var b = document.createElement('div');
+          b.className = 'm-badge';
+          b.textContent = kw;
+          statusEl.appendChild(b);
+        });
+        el.appendChild(statusEl);
+      }
+
+      if (!isOpp && !minion.sleeping && isMyTurn()) {
+        el.addEventListener('click', function () { onMinionAttack(+this.dataset.idx); });
+      }
+      if (isOpp) {
+        el.addEventListener('click', function () { onAttackTarget('minion', +this.dataset.idx); });
+      }
+      el.addEventListener('mouseenter', function (e) { showTooltip(e, minion); });
+      el.addEventListener('mouseleave', hideTooltip);
+      fieldEl.appendChild(el);
+    });
+  }
+
+  function renderAll() {
+    $myName.textContent  = myName;
+    $oppName.textContent = oppName;
+    renderHp($myHpOrb,  gs.me.hp);
+    renderHp($oppHpOrb, gs.opp.hp);
+    renderManaBar($myManaBar,  $myManaText,  gs.me.mana,  gs.me.maxMana);
+    renderManaBar($oppManaBar, $oppManaText, gs.opp.mana, gs.opp.maxMana);
+    renderHand();
+    renderOppHand();
+    renderField($myField,  null,     gs.me.field,  false);
+    renderField($oppField, null,     gs.opp.field, true);
+    $myDeckCount.textContent  = gs.me.deckCount;
+    $oppDeckCount.textContent = gs.opp.deckCount;
+
+    var myTurn = isMyTurn();
+    $endTurnBtn.disabled = !myTurn || gs.gameOver;
+
+    if (myTurn) {
+      $turnIndicator.textContent = 'Your Turn';
+      $turnIndicator.className = 'turn-indicator your-turn';
+      $myTurnLabel.textContent  = '▶ Your turn';
+      $oppTurnLabel.textContent = '';
+    } else {
+      $turnIndicator.textContent = "Opponent's Turn";
+      $turnIndicator.className = 'turn-indicator opp-turn';
+      $myTurnLabel.textContent  = '';
+      $oppTurnLabel.textContent = '▶ Their turn';
+    }
+    $turnCounter.textContent = 'Turn ' + gs.turn;
+  }
+
+  // ─── Rope timer ──────────────────────────────────────────────
+  var ropeInterval = null;
+  var ropeRemaining = TURN_SECONDS;
+
+  function startRope() {
+    clearInterval(ropeInterval);
+    ropeRemaining = TURN_SECONDS;
+    $ropeFill.style.transition = 'none';
+    $ropeFill.style.width = '100%';
+    setTimeout(function () {
+      $ropeFill.style.transition = 'width ' + TURN_SECONDS + 's linear';
+      $ropeFill.style.width = '0%';
+    }, 50);
+    ropeInterval = setInterval(function () {
+      ropeRemaining -= 1;
+      if (ropeRemaining <= 0) {
+        clearInterval(ropeInterval);
+        if (isMyTurn()) endTurn();
+      }
+    }, 1000);
+  }
+
+  function stopRope() {
+    clearInterval(ropeInterval);
+    $ropeFill.style.transition = 'none';
+    $ropeFill.style.width = '100%';
+  }
+
+  // ─── Turn Banner ─────────────────────────────────────────────
+  function showBanner(text) {
+    $bannerText.textContent = text;
+    $turnBanner.hidden = false;
+    setTimeout(function () { $turnBanner.hidden = true; }, 1800);
+  }
+
+  // ─── Draw a card ─────────────────────────────────────────────
+  function drawCard(who, n) {
+    n = n || 1;
+    var state = (who === 'me') ? gs.me : gs.opp;
+    for (var i = 0; i < n; i++) {
+      if (state.hand.length >= 10) { /* overload — card burnt */ continue; }
+      if (state.deck.length === 0) {
+        // Fatigue — not implemented yet, just skip
+        continue;
+      }
+      var card = state.deck.shift();
+      state.hand.push(card);
+      state.deckCount = Math.max(0, state.deckCount - 1);
+    }
+  }
+
+  // ─── Start turn ──────────────────────────────────────────────
+  function startTurn(role) {
+    gs.activeRole = role;
+    var isMe = (role === myRole);
+    var state = isMe ? gs.me : gs.opp;
+
+    // Increase max mana (cap 10)
+    state.maxMana = Math.min(state.maxMana + 1, MAX_MANA);
+    state.mana = state.maxMana;
+
+    // Wake sleeping minions
+    if (isMe) {
+      gs.me.field.forEach(function (m) { m.sleeping = false; });
+    } else {
+      gs.opp.field.forEach(function (m) { m.sleeping = false; });
+    }
+
+    // Draw a card
+    if (isMe) {
+      drawCard('me', 1);
+    } else {
+      // Simulate opponent drawing (we only know hand count, not actual cards)
+      if (gs.opp.hand.length < 10) {
+        gs.opp.hand.push({ id: 'opp_hidden' });
+        gs.opp.deckCount = Math.max(0, gs.opp.deckCount - 1);
+      }
+    }
+
+    renderAll();
+
+    if (isMe) {
+      showBanner('Your Turn');
+      startRope();
+    } else {
+      showBanner("Opponent's Turn");
+      stopRope();
+    }
+  }
+
+  // ─── End Turn (local player clicks) ──────────────────────────
+  function endTurn() {
+    if (!isMyTurn() || gs.gameOver) return;
+    stopRope();
+
+    // Send to opponent
+    sendNet({ action: 'end-turn', turn: gs.turn });
+
+    gs.turn += 1;
+    startTurn(myRole === 'host' ? 'guest' : 'host');
+  }
+
+  function receiveEndTurn(data) {
+    gs.turn = (data.turn || gs.turn) + 1;
+    startTurn(myRole); // now it's our turn
+  }
+
+  // ─── Play a card from hand ────────────────────────────────────
+  function onPlayCard(idx) {
+    if (!isMyTurn() || gs.gameOver) return;
+    var card = gs.me.hand[idx];
+    if (!card) return;
+    if (card.cost > gs.me.mana) return;
+    if (card.type === 'minion' && gs.me.field.length >= MAX_FIELD_SIZE) return;
+
+    gs.me.mana -= card.cost;
+    gs.me.hand.splice(idx, 1);
+
+    if (card.type === 'minion') {
+      var minionOnField = {
+        id: card.id + '_' + Date.now(),
+        name: card.name,
+        atk: card.atk,
+        hp: card.hp,
+        maxHp: card.hp,
+        emoji: card.emoji || '⚔️',
+        desc: card.desc || '',
+        keywords: parseKeywords(card.desc || ''),
+        sleeping: true, // summoning sickness
+      };
+      gs.me.field.push(minionOnField);
+      sendNet({ action: 'play-minion', card: { name: card.name, atk: card.atk, hp: card.hp, emoji: card.emoji, desc: card.desc } });
+    }
+
+    renderAll();
+  }
+
+  function receivePlayMinion(data) {
+    if (!data.card) return;
+    var m = {
+      id: 'opp_' + Date.now(),
+      name: data.card.name,
+      atk: data.card.atk,
+      hp: data.card.hp,
+      maxHp: data.card.hp,
+      emoji: data.card.emoji || '⚔️',
+      desc: data.card.desc || '',
+      keywords: parseKeywords(data.card.desc || ''),
+      sleeping: true,
+    };
+    gs.opp.field.push(m);
+    // Remove from opponent's simulated hand
+    if (gs.opp.hand.length > 0) gs.opp.hand.pop();
+    renderAll();
+  }
+
+  // ─── Attack flow ─────────────────────────────────────────────
+  var attackingMinionIdx = null;
+
+  function onMinionAttack(idx) {
+    if (!isMyTurn() || gs.gameOver) return;
+    var m = gs.me.field[idx];
+    if (!m || m.sleeping) return;
+    attackingMinionIdx = idx;
+    // Highlight attackable targets — handled via CSS on .opp minions and hero
+    renderAll();
+  }
+
+  function onAttackTarget(targetType, targetIdx) {
+    if (attackingMinionIdx === null || !isMyTurn() || gs.gameOver) return;
+    var attacker = gs.me.field[attackingMinionIdx];
+    if (!attacker) { attackingMinionIdx = null; return; }
+
+    var dmgToOpp, dmgToAtk;
+
+    if (targetType === 'minion') {
+      var defender = gs.opp.field[targetIdx];
+      if (!defender) { attackingMinionIdx = null; return; }
+      dmgToOpp = attacker.atk;
+      dmgToAtk = defender.atk;
+
+      defender.hp -= attacker.atk;
+      attacker.hp -= defender.atk;
+      attacker.sleeping = true; // used attack
+
+      // Remove dead minions
+      gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
+      gs.me.field  = gs.me.field.filter(function (m) { return m.hp > 0; });
+
+      sendNet({
+        action: 'attack',
+        attackerIdx: attackingMinionIdx,
+        targetType: 'minion',
+        targetIdx: targetIdx,
+        atkAtk: attacker.atk,
+        atkHp: attacker.hp,
+        defAtk: defender.atk,
+        defHpAfter: defender.hp
+      });
+    } else if (targetType === 'hero') {
+      gs.opp.hp -= attacker.atk;
+      attacker.sleeping = true;
+      sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: attacker.atk });
+    }
+
+    attackingMinionIdx = null;
+    checkGameOver();
+    renderAll();
+  }
+
+  // Allow clicking opponent hero to attack
+  document.getElementById('opp-hero').addEventListener('click', function () {
+    if (attackingMinionIdx !== null) onAttackTarget('hero', null);
+  });
+
+  function receiveAttack(data) {
+    if (data.targetType === 'minion') {
+      // data describes what happened from opponent's perspective
+      // Our field = their opp.field; their field = our opp.field
+      var theirMinion = gs.opp.field[data.attackerIdx];
+      var ourMinion   = gs.me.field[data.targetIdx];
+      if (theirMinion) { theirMinion.sleeping = true; theirMinion.hp = theirMinion.hp - (data.defAtk || 0); }
+      if (ourMinion)   { ourMinion.hp = data.defHpAfter != null ? ourMinion.maxHp - (ourMinion.maxHp - data.defHpAfter) : ourMinion.hp - (data.atkAtk || 0); }
+      gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
+      gs.me.field  = gs.me.field.filter(function (m) { return m.hp > 0; });
+    } else if (data.targetType === 'hero') {
+      gs.me.hp -= (data.atkAtk || 0);
+    }
+    checkGameOver();
+    renderAll();
+  }
+
+  // ─── Game Over ───────────────────────────────────────────────
+  function checkGameOver() {
+    if (gs.me.hp <= 0 || gs.opp.hp <= 0) {
+      gs.gameOver = true;
+      var won = gs.opp.hp <= 0;
+      $gameOverTitle.textContent = won ? 'Victory!' : 'Defeat';
+      $gameOverTitle.className = 'game-over-title ' + (won ? 'victory' : 'defeat');
+      $gameOverSub.textContent = won ? 'You defeated ' + oppName + '!' : oppName + ' has defeated you.';
+      $gameOver.classList.add('show');
+      stopRope();
+    }
+  }
+
+  // ─── Tooltip ─────────────────────────────────────────────────
+  function showTooltip(e, card) {
+    document.getElementById('tt-name').textContent = card.name || '';
+    document.getElementById('tt-type').textContent = (card.type || 'minion').toUpperCase() + (card.race ? ' · ' + card.race : '');
+    document.getElementById('tt-desc').textContent = card.desc || card.description || '';
+    var stats = '';
+    if (card.atk != null) stats += '<span class="tt-stat-atk">⚔ ' + card.atk + '</span>';
+    if (card.hp  != null) stats += '<span class="tt-stat-hp">♥ ' + card.hp  + '</span>';
+    document.getElementById('tt-stats').innerHTML = stats;
+    $tooltip.classList.add('visible');
+    positionTooltip(e);
+  }
+
+  function hideTooltip() { $tooltip.classList.remove('visible'); }
+
+  function positionTooltip(e) {
+    var x = e.clientX + 14;
+    var y = e.clientY + 14;
+    if (x + 200 > window.innerWidth)  x = e.clientX - 200;
+    if (y + 180 > window.innerHeight) y = e.clientY - 180;
+    $tooltip.style.left = x + 'px';
+    $tooltip.style.top  = y + 'px';
+  }
+
+  document.addEventListener('mousemove', function (e) {
+    if ($tooltip.classList.contains('visible')) positionTooltip(e);
+  });
+
+  // ─── End Turn Button ─────────────────────────────────────────
+  $endTurnBtn.addEventListener('click', endTurn);
+
+  // ─── Utilities ───────────────────────────────────────────────
+  function esc(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function parseKeywords(desc) {
+    var kws = ['Taunt', 'Charge', 'Divine Shield', 'Lifesteal', 'Poisonous', 'Windfury', 'Reborn', 'Stealth', 'Rush'];
+    return kws.filter(function (k) { return desc.toLowerCase().includes(k.toLowerCase()); });
+  }
+
+  // ─── Init ────────────────────────────────────────────────────
+  function init() {
+    connectMQTT();
+
+    // Deal opening hands
+    drawCard('me',  3);
+    // Opponent's simulated hand
+    for (var i = 0; i < 3; i++) {
+      if (gs.opp.hand.length < 10) {
+        gs.opp.hand.push({ id: 'opp_hidden' });
+        gs.opp.deckCount = Math.max(0, gs.opp.deckCount - 1);
+      }
+    }
+
+    renderAll();
+
+    // First turn starts after a short delay so players can see the board
+    setTimeout(function () {
+      startTurn('host'); // host always goes first
+    }, 1000);
+  }
+
+  init();
+
+})();
+</script>
+
+</body>
+</html>
