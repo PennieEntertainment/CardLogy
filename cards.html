@@ -460,8 +460,39 @@
       color: var(--muted);
       font-size: 0.8rem;
       margin-top: 0.5rem;
+      position: relative;
+      user-select: none;
     }
-    .art-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .art-preview.has-image { cursor: grab; }
+    .art-preview.has-image:active { cursor: grabbing; }
+    .art-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    /* focal-point crosshair */
+    .pos-dot {
+      position: absolute;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.15);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 0 6px rgba(0,0,0,0.5);
+    }
+    .pos-dot::before, .pos-dot::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.85);
+    }
+    .pos-dot::before { width: 1px; height: 8px; left: 50%; top: -5px; transform: translateX(-50%); }
+    .pos-dot::after  { height: 1px; width: 8px; top: 50%; left: -5px; transform: translateY(-50%); }
+
+    .art-hint {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      text-align: center;
+    }
+    .art-hint span { color: var(--accent2); font-variant-numeric: tabular-nums; }
 
     .modal-footer {
       display: flex;
@@ -582,17 +613,7 @@
           <label class="field-label" for="fRace">Race / Tribe <span class="note">(Minion only)</span></label>
           <select id="fRace">
             <option value="none">None</option>
-            <option value="murloc">Murloc</option>
-            <option value="undead">Undead</option>
-            <option value="beast">Beast</option>
-            <option value="dragon">Dragon</option>
-            <option value="mech">Mech</option>
-            <option value="elemental">Elemental</option>
-            <option value="pirate">Pirate</option>
-            <option value="demon">Demon</option>
-            <option value="naga">Naga</option>
-            <option value="quilboar">Quilboar</option>
-            <option value="totem">Totem</option>
+            <option value="VideoGame">Video Game</option>
           </select>
         </div>
 
@@ -632,6 +653,9 @@
           <div class="art-preview" id="artPreview">
             <span>No image selected</span>
           </div>
+          <p class="art-hint" id="artHint" style="display:none">
+            Drag to reframe &nbsp;&middot;&nbsp; <span id="posLabel">50%, 50%</span>
+          </p>
         </div>
 
       </div>
@@ -669,6 +693,7 @@
     let db = loadDB();
     let editingId = null;
     let selectedKw = new Set();
+    let picX = 50, picY = 50;  // focal point %
 
     // ── Persistence ────────────────────────────────────────
     function loadDB() {
@@ -721,6 +746,7 @@
         const img = document.createElement('img');
         img.src = card.picture;
         img.alt = card.name;
+        img.style.objectPosition = `${card.picX ?? 50}% ${card.picY ?? 50}%`;
         img.onerror = () => { img.remove(); art.innerHTML = `<div class="art-placeholder">${artPlaceholder}</div>`; };
         art.appendChild(img);
       } else {
@@ -860,16 +886,35 @@
       document.getElementById('fPicUrl').value = '';
       document.getElementById('fPicFile').value = '';
       document.getElementById('artPreview').innerHTML = '<span>No image selected</span>';
+      document.getElementById('artPreview').classList.remove('has-image');
+      document.getElementById('artHint').style.display = 'none';
+      picX = 50; picY = 50;
       selectedKw = new Set();
       updateTypeFields();
     }
 
+    function updatePosDot() {
+      const preview = document.getElementById('artPreview');
+      const img = preview.querySelector('img');
+      const dot = preview.querySelector('.pos-dot');
+      if (img) img.style.objectPosition = `${picX}% ${picY}%`;
+      if (dot) { dot.style.left = `${picX}%`; dot.style.top = `${picY}%`; }
+      const lbl = document.getElementById('posLabel');
+      if (lbl) lbl.textContent = `${Math.round(picX)}%, ${Math.round(picY)}%`;
+    }
+
     function setArtPreview(src) {
       const preview = document.getElementById('artPreview');
+      const hint    = document.getElementById('artHint');
       if (src) {
-        preview.innerHTML = `<img src="${escapeHtml(src)}" alt="Preview" />`;
+        preview.innerHTML = `<img src="${escapeHtml(src)}" alt="Preview" /><div class="pos-dot"></div>`;
+        preview.classList.add('has-image');
+        hint.style.display = '';
+        updatePosDot();
       } else {
         preview.innerHTML = '<span>No image selected</span>';
+        preview.classList.remove('has-image');
+        hint.style.display = 'none';
       }
     }
 
@@ -909,6 +954,8 @@
 
       const isUrl = typeof card.picture === 'string' && card.picture.startsWith('http');
       document.getElementById('fPicUrl').value = isUrl ? card.picture : '';
+      picX = card.picX ?? 50;
+      picY = card.picY ?? 50;
       setArtPreview(card.picture ?? null);
 
       selectedKw = new Set(card.keywords ?? []);
@@ -929,6 +976,8 @@
         description: document.getElementById('fDesc').value.trim(),
         race:        cardType !== 'spell' ? document.getElementById('fRace').value : 'none',
         keywords:    [...selectedKw],
+        picX,
+        picY,
         picture:     picOverride !== undefined ? picOverride : null,
         createdAt:   editingId
           ? (db.find(c => c.id === editingId)?.createdAt ?? Date.now())
@@ -996,6 +1045,49 @@
       };
       reader.readAsText(file);
     }
+
+    // ── Drag-to-reframe ────────────────────────────────────
+    (() => {
+      const preview = document.getElementById('artPreview');
+      let dragging = false, lastX = 0, lastY = 0;
+
+      preview.addEventListener('mousedown', e => {
+        if (!preview.classList.contains('has-image')) return;
+        dragging = true;
+        lastX = e.clientX; lastY = e.clientY;
+        e.preventDefault();
+      });
+
+      window.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const rect = preview.getBoundingClientRect();
+        // dragging left  → show more of right side  → picX increases
+        picX = Math.min(100, Math.max(0, picX + (e.clientX - lastX) / rect.width  * -100));
+        picY = Math.min(100, Math.max(0, picY + (e.clientY - lastY) / rect.height * -100));
+        lastX = e.clientX; lastY = e.clientY;
+        updatePosDot();
+      });
+
+      window.addEventListener('mouseup', () => { dragging = false; });
+
+      // Touch support
+      preview.addEventListener('touchstart', e => {
+        if (!preview.classList.contains('has-image')) return;
+        dragging = true;
+        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+      }, { passive: true });
+
+      window.addEventListener('touchmove', e => {
+        if (!dragging) return;
+        const rect = preview.getBoundingClientRect();
+        picX = Math.min(100, Math.max(0, picX + (e.touches[0].clientX - lastX) / rect.width  * -100));
+        picY = Math.min(100, Math.max(0, picY + (e.touches[0].clientY - lastY) / rect.height * -100));
+        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        updatePosDot();
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => { dragging = false; });
+    })();
 
     // ── Event wiring ───────────────────────────────────────
     document.getElementById('btnNew').addEventListener('click', openNew);
