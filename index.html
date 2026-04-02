@@ -303,7 +303,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.2.0</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.2.1</div>
 
 <div class="card">
   <div class="logo">
@@ -502,24 +502,30 @@
       };
     }
 
-    // Production: use public STUN + multiple free TURN relays for NAT traversal
+    // Production: staticauth.openrelay.metered.ca — time-limited HMAC-SHA1 credentials
+    // This is the documented free-without-registration method per openrelay.metered.ca
+    const secret = 'openrelayprojectsecret';
+    const expiry = Math.floor(Date.now() / 1000) + 86400; // 24 h
+    const username = String(expiry) + ':cardlogy';
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw', enc.encode(secret),
+      { name: 'HMAC', hash: 'SHA-1' },
+      false, ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(username));
+    const credential = btoa(String.fromCharCode(...new Uint8Array(sig)));
+
     return {
       debug: 2,
       config: {
-        iceTransportPolicy: 'all',
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          // Open Relay Project free TURN
-          { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:80?transport=tcp',   username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
-          // freestun.net free TURN
-          { urls: 'stun:freestun.net:3479' },
-          { urls: 'turn:freestun.net:3479',  username: 'free', credential: 'free' },
-          { urls: 'turns:freestun.net:5350', username: 'free', credential: 'free' }
+          { urls: 'turn:staticauth.openrelay.metered.ca:80',                username, credential },
+          { urls: 'turn:staticauth.openrelay.metered.ca:80?transport=tcp',   username, credential },
+          { urls: 'turn:staticauth.openrelay.metered.ca:443',               username, credential },
+          { urls: 'turn:staticauth.openrelay.metered.ca:443?transport=tcp',  username, credential }
         ]
       }
     };
