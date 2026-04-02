@@ -27,6 +27,7 @@ import { WebSocketServer } from 'ws';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { pbkdf2Sync, randomBytes, timingSafeEqual } from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CARDS_FILE = join(__dirname, 'cards.json');
@@ -39,6 +40,21 @@ if (existsSync(CARDS_FILE)) {
 
 function persistCards() {
   writeFileSync(CARDS_FILE, JSON.stringify(cards, null, 2), 'utf8');
+}
+
+// ── User storage ───────────────────────────────────────
+const USERS_FILE = join(__dirname, 'users.json');
+let users = [];
+if (existsSync(USERS_FILE)) {
+  try { users = JSON.parse(readFileSync(USERS_FILE, 'utf8')); } catch { users = []; }
+}
+
+function persistUsers() {
+  writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+}
+
+function hashPassword(password, salt) {
+  return pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
 }
 
 function setCORS(res) {
@@ -182,6 +198,67 @@ const server = createServer(async (req, res) => {
     persistCards();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, deleted: before - cards.length })); return;
+  }
+
+  // POST /register
+  if (req.method === 'POST' && pathname === '/register') {
+    try {
+      const body = await readBody(req);
+      const username = String(body.username || '').trim().toLowerCase();
+      const password = String(body.password || '');
+      if (!username || username.length < 3 || !password || password.length < 4) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Username must be ≥ 3 characters and password ≥ 4 characters.' })); return;
+      }
+      if (!/^[a-z0-9_]+$/.test(username)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Username may only contain letters, numbers, and underscores.' })); return;
+      }
+      if (users.find(u => u.username === username)) {
+        res.writeHead(409, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Username already taken.' })); return;
+      }
+      const salt = randomBytes(16).toString('hex');
+      const hash = hashPassword(password, salt);
+      users.push({ username, hash, salt });
+      persistUsers();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, username }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // POST /login
+  if (req.method === 'POST' && pathname === '/login') {
+    try {
+      const body = await readBody(req);
+      const username = String(body.username || '').trim().toLowerCase();
+      const password = String(body.password || '');
+      const user = users.find(u => u.username === username);
+      if (!user) {
+        // Compute a dummy hash to prevent timing-based username enumeration
+        const dummySalt = randomBytes(16).toString('hex');
+        hashPassword(password, dummySalt);
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid username or password.' })); return;
+      }
+      const hash = hashPassword(password, user.salt);
+      const hashBuf   = Buffer.from(hash);
+      const storedBuf = Buffer.from(user.hash);
+      if (hashBuf.length !== storedBuf.length || !timingSafeEqual(hashBuf, storedBuf)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid username or password.' })); return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, username }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
   }
 
   // Default
