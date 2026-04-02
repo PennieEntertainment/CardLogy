@@ -634,14 +634,18 @@
 
     /* ─── Turn banner ───────────────────────────────────────── */
     #turn-banner {
+      display: none;
       position: fixed;
       inset: 0;
-      display: flex;
       align-items: center;
       justify-content: center;
       z-index: 100;
       pointer-events: none;
+      opacity: 1;
       transition: opacity 0.5s ease;
+    }
+    #turn-banner.visible {
+      display: flex;
     }
     #turn-banner.hiding {
       opacity: 0;
@@ -894,7 +898,7 @@
 </div><!-- #board -->
 
 <!-- ─── Turn Banner ──────────────────────────────────────────── -->
-<div id="turn-banner" hidden>
+<div id="turn-banner">
   <div class="banner-text" id="banner-text">Your Turn</div>
 </div>
 
@@ -1289,11 +1293,14 @@
   function showBanner(text) {
     $bannerText.textContent = text;
     $turnBanner.classList.remove('hiding');
-    $turnBanner.hidden = false;
-    // Start fade-out after 2s, then hide after the 0.5s transition
+    $turnBanner.classList.add('visible');
+    // Start fade-out after 2s, then fully hide after the 0.5s transition
     setTimeout(function () {
       $turnBanner.classList.add('hiding');
-      setTimeout(function () { $turnBanner.hidden = true; $turnBanner.classList.remove('hiding'); }, 500);
+      setTimeout(function () {
+        $turnBanner.classList.remove('visible');
+        $turnBanner.classList.remove('hiding');
+      }, 500);
     }, 2000);
   }
 
