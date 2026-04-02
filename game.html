@@ -213,11 +213,11 @@
     /* ─── Hand areas ────────────────────────────────────────── */
     .hand-wrap {
       flex-shrink: 0;
-      height: 90px;
+      height: 140px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 6px 0;
+      padding: 8px 0;
       position: relative;
       z-index: 4;
     }
@@ -227,21 +227,21 @@
       align-items: flex-end;
       justify-content: center;
       gap: -8px; /* cards overlap */
-      height: 80px;
+      height: 124px;
       position: relative;
     }
 
     /* Generic card back / placeholder */
     .card-in-hand {
-      width: 58px; height: 76px;
-      border-radius: 8px;
+      width: 82px; height: 112px;
+      border-radius: 10px;
       border: 2px solid;
       position: relative;
       cursor: pointer;
       transition: transform 0.15s, box-shadow 0.15s;
       flex-shrink: 0;
     }
-    .card-in-hand:nth-child(n) { margin-left: -10px; }
+    .card-in-hand:nth-child(n) { margin-left: -14px; }
     .card-in-hand:first-child  { margin-left: 0; }
 
     /* Opponent hand — face-down backs */
@@ -279,15 +279,15 @@
     /* Card cost gem (top-left) */
     .card-gem {
       position: absolute;
-      top: -7px; left: -7px;
-      width: 22px; height: 22px;
+      top: -9px; left: -9px;
+      width: 28px; height: 28px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
-      border: 1.5px solid #aedaf7;
+      border: 2px solid #aedaf7;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.65rem;
+      font-size: 0.82rem;
       font-weight: 900;
       color: #fff;
       z-index: 5;
@@ -297,11 +297,11 @@
     .card-art {
       position: absolute;
       top: 4px; left: 4px; right: 4px;
-      height: 36px;
+      height: 54px;
       background: #111827;
       border-radius: 4px;
       overflow: hidden;
-      font-size: 1.4rem;
+      font-size: 2rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -310,8 +310,8 @@
     .card-art:not(:has(img)) { opacity: 0.5; }
     .card-name {
       position: absolute;
-      bottom: 20px; left: 2px; right: 2px;
-      font-size: 0.38rem;
+      bottom: 26px; left: 3px; right: 3px;
+      font-size: 0.58rem;
       font-weight: 800;
       text-align: center;
       color: var(--gold2);
@@ -321,8 +321,8 @@
     }
     .card-desc {
       position: absolute;
-      bottom: 2px; left: 2px; right: 2px;
-      font-size: 0.35rem;
+      bottom: 4px; left: 3px; right: 3px;
+      font-size: 0.5rem;
       text-align: center;
       color: #aaa;
       white-space: nowrap;
@@ -332,27 +332,27 @@
     }
     .card-atk {
       position: absolute;
-      bottom: -7px; left: -7px;
-      width: 22px; height: 22px;
+      bottom: -9px; left: -9px;
+      width: 28px; height: 28px;
       background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
-      border: 1.5px solid #ffe49e;
+      border: 2px solid #ffe49e;
       border-radius: 4px;
       transform: rotate(45deg);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.6rem; font-weight: 900; color: #fff;
+      font-size: 0.78rem; font-weight: 900; color: #fff;
       z-index: 5;
       box-shadow: 0 2px 6px rgba(0,0,0,0.6);
     }
     .card-atk span { transform: rotate(-45deg); display: block; }
     .card-hp {
       position: absolute;
-      bottom: -7px; right: -7px;
-      width: 22px; height: 22px;
+      bottom: -9px; right: -9px;
+      width: 28px; height: 28px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
-      border: 1.5px solid #ffb3b3;
+      border: 2px solid #ffb3b3;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.6rem; font-weight: 900; color: #fff;
+      font-size: 0.78rem; font-weight: 900; color: #fff;
       z-index: 5;
       box-shadow: 0 2px 6px rgba(0,0,0,0.6);
     }
@@ -412,8 +412,8 @@
 
     /* Minion card on field */
     .minion {
-      width: 64px; height: 80px;
-      border-radius: 8px;
+      width: 94px; height: 118px;
+      border-radius: 10px;
       position: relative;
       flex-shrink: 0;
       display: flex;
@@ -425,14 +425,14 @@
     .minion .minion-art {
       position: absolute;
       inset: 0;
-      border-radius: 8px;
+      border-radius: 10px;
       background: linear-gradient(170deg, #1a2840, #0d1825);
       border: 2px solid var(--gold);
       overflow: hidden;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem;
+      font-size: 2.4rem;
     }
-    .minion:hover { transform: translateY(-6px); z-index: 20; }
+    .minion:hover { transform: translateY(-8px); z-index: 20; }
     .minion.can-attack .minion-art {
       border-color: #f59e0b;
       box-shadow: 0 0 14px rgba(245,158,11,0.6);
@@ -441,33 +441,33 @@
     .minion.sleeping .minion-art { filter: brightness(0.5); }
     .minion .m-atk {
       position: absolute;
-      bottom: -7px; left: -7px;
-      width: 24px; height: 24px;
+      bottom: -9px; left: -9px;
+      width: 30px; height: 30px;
       background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
-      border: 1.5px solid #ffe49e;
+      border: 2px solid #ffe49e;
       border-radius: 4px;
       transform: rotate(45deg);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem; font-weight: 900; color: #fff;
+      font-size: 0.82rem; font-weight: 900; color: #fff;
       z-index: 5;
     }
     .minion .m-atk span { transform: rotate(-45deg); display: block; }
     .minion .m-hp {
       position: absolute;
-      bottom: -7px; right: -7px;
-      width: 24px; height: 24px;
+      bottom: -9px; right: -9px;
+      width: 30px; height: 30px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
-      border: 1.5px solid #ffb3b3;
+      border: 2px solid #ffb3b3;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem; font-weight: 900; color: #fff;
+      font-size: 0.82rem; font-weight: 900; color: #fff;
       z-index: 5;
     }
     .minion .m-hp.damaged { color: #ff4444; }
     .minion .m-name {
       position: absolute;
-      bottom: 14px; left: 2px; right: 2px;
-      font-size: 0.38rem; font-weight: 800;
+      bottom: 17px; left: 3px; right: 3px;
+      font-size: 0.55rem; font-weight: 800;
       text-align: center; color: var(--gold2);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
@@ -486,11 +486,12 @@
     /* ─── Center Divider ────────────────────────────────────── */
     .center-bar {
       flex-shrink: 0;
-      height: 60px;
+      height: 72px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 20px;
+      justify-content: space-between;
+      padding: 0 28px;
+      gap: 12px;
       position: relative;
       z-index: 6;
     }
