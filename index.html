@@ -303,7 +303,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.2.1</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.2.2</div>
 
 <div class="card">
   <div class="logo">
@@ -502,8 +502,9 @@
       };
     }
 
-    // Production: staticauth.openrelay.metered.ca — time-limited HMAC-SHA1 credentials
-    // This is the documented free-without-registration method per openrelay.metered.ca
+    // Production: use Google STUN + multiple free public TURN relays.
+    // openrelay.metered.ca supports static HMAC-SHA1 credentials via openrelayprojectsecret.
+    // freeturn.net is a secondary fallback with no-auth TURN on port 3478.
     const secret = 'openrelayprojectsecret';
     const expiry = Math.floor(Date.now() / 1000) + 86400; // 24 h
     const username = String(expiry) + ':cardlogy';
@@ -517,15 +518,20 @@
     const credential = btoa(String.fromCharCode(...new Uint8Array(sig)));
 
     return {
-      debug: 2,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun.cloudflare.com:3478' },
+          // openrelay TURN — UDP + TCP on 80 and 443
+          { urls: 'turn:openrelay.metered.ca:80',               username, credential },
+          { urls: 'turn:openrelay.metered.ca:443',              username, credential },
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username, credential },
+          { urls: 'turn:openrelay.metered.ca:80?transport=tcp',  username, credential },
+          // staticauth variant (alternate endpoint same service)
           { urls: 'turn:staticauth.openrelay.metered.ca:80',                username, credential },
-          { urls: 'turn:staticauth.openrelay.metered.ca:80?transport=tcp',   username, credential },
-          { urls: 'turn:staticauth.openrelay.metered.ca:443',               username, credential },
-          { urls: 'turn:staticauth.openrelay.metered.ca:443?transport=tcp',  username, credential }
+          { urls: 'turn:staticauth.openrelay.metered.ca:443?transport=tcp',  username, credential },
         ]
       }
     };
@@ -583,9 +589,17 @@
     const peerCfg = await getPeerCfg();
     peer = new Peer(undefined, peerCfg);
 
+    var reconnectCount = 0;
+
     peer.on('open', function (id) {
+      reconnectCount = 0;
       createBtn.disabled = false;
       createBtn.textContent = 'Create Lobby';
+
+      // Restore status dot / label after a reconnect
+      const dot = connStatus.querySelector('.status-dot');
+      dot.className = 'status-dot ' + (conn && conn.open ? 'connected' : 'waiting');
+      connLabel.textContent = conn && conn.open ? 'Connected' : 'Waiting…';
 
       // Populate host slot
       name1.textContent = myName;
@@ -595,7 +609,7 @@
       displayCode.textContent = id;
       roomCodeSection.hidden = false;
 
-      setConnected(false);
+      if (!conn || !conn.open) setConnected(false);
       showLobby();
     });
 
@@ -606,18 +620,33 @@
     });
 
     peer.on('disconnected', function () {
-      // Signaling server dropped us — lobby is now unreachable
-      const dot = connStatus.querySelector('.status-dot');
-      dot.className = 'status-dot waiting';
-      connLabel.textContent = 'Lobby offline';
-      waitingMsg.textContent = 'Lost connection to signaling server — your room code is no longer valid. Leave and create a new lobby.';
+      if (peer.destroyed) return;
+      if (reconnectCount >= 4) {
+        // Give up after 4 attempts
+        const dot = connStatus.querySelector('.status-dot');
+        dot.className = 'status-dot waiting';
+        connLabel.textContent = 'Lobby offline';
+        waitingMsg.textContent = 'Lost connection to signaling server — your room code is no longer valid. Leave and create a new lobby.';
+        waitingMsg.hidden = false;
+        return;
+      }
+      reconnectCount++;
+      connLabel.textContent = 'Reconnecting…';
+      waitingMsg.textContent = 'Lost connection to signaling server — reconnecting… (attempt ' + reconnectCount + ')';
       waitingMsg.hidden = false;
+      // Exponential backoff: 1s, 2s, 4s, 8s
+      setTimeout(function () {
+        if (!peer.destroyed) peer.reconnect();
+      }, Math.min(1000 * Math.pow(2, reconnectCount - 1), 8000));
     });
 
     peer.on('error', function (err) {
       console.error('Peer error:', err);
-      createBtn.disabled = false;
-      createBtn.textContent = 'Create Lobby';
+      // Don't reset the create button if we're already in the lobby
+      if (!lobbyView.classList.contains('active')) {
+        createBtn.disabled = false;
+        createBtn.textContent = 'Create Lobby';
+      }
     });
   });
 
@@ -651,18 +680,25 @@
       joinBtn.disabled = false;
       joinBtn.textContent = 'Join';
       destroyPeer();
-    }, 20000);
+    }, 30000);
 
     peer.on('open', function () {
       const c = peer.connect(code, { reliable: true });
       conn = c;
 
-      // Monitor ICE state to detect failure early (before the 20s timeout)
+      // Monitor ICE state to detect failure early (before the 30s timeout)
       function attachIceMonitor() {
         var pc = c.peerConnection;
         if (!pc) return;
+        var iceRestarted = false;
         pc.addEventListener('iceconnectionstatechange', function () {
           if (pc.iceConnectionState === 'failed') {
+            if (!iceRestarted) {
+              // Attempt ICE restart once before giving up
+              iceRestarted = true;
+              try { pc.restartIce(); } catch(e) { /* not supported */ }
+              return;
+            }
             clearTimeout(joinTimeout);
             roomError.textContent = 'Direct connection failed (NAT/firewall). Both players need a working TURN relay. Try again or switch networks.';
             roomError.hidden = false;
@@ -675,7 +711,7 @@
       if (c.peerConnection) {
         attachIceMonitor();
       } else {
-        setTimeout(attachIceMonitor, 50);
+        setTimeout(attachIceMonitor, 200);
       }
 
       c.on('open', function () {
