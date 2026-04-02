@@ -159,7 +159,6 @@
     /* Type backgrounds */
     .hs-card.type-minion .frame { background: linear-gradient(170deg, #1a2840 0%, #0d1825 100%); }
     .hs-card.type-spell   .frame { background: linear-gradient(170deg, #2a1a44 0%, #160d30 100%); }
-    .hs-card.type-weapon  .frame { background: linear-gradient(170deg, #3e2510 0%, #201208 100%); }
 
     /* Rarity borders */
     .hs-card.rarity-common    .frame { border: 2px solid #6b7280; }
@@ -312,24 +311,7 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.7);
     }
 
-    /* Durability orb (weapon) — teal */
-    .hs-card .gem-durability {
-      position: absolute;
-      bottom: -10px; right: -10px;
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #80ffe8, #00897b 55%, #004d40);
-      border: 2px solid #80cbc4;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.05rem;
-      font-weight: 900;
-      color: #fff;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-      z-index: 5;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
-    }
+
 
     /* ── Modal ────────────────────────────── */
     .modal-overlay {
@@ -510,7 +492,6 @@
       <option value="">All Types</option>
       <option value="minion">Minion</option>
       <option value="spell">Spell</option>
-      <option value="weapon">Weapon</option>
     </select>
     <select id="filterMana">
       <option value="">Any Mana</option>
@@ -532,6 +513,21 @@
       <option value="rare">Rare</option>
       <option value="epic">Epic</option>
       <option value="legendary">Legendary</option>
+    </select>
+    <select id="filterRace">
+      <option value="">All Races</option>
+      <option value="none">None</option>
+      <option value="murloc">Murloc</option>
+      <option value="undead">Undead</option>
+      <option value="beast">Beast</option>
+      <option value="dragon">Dragon</option>
+      <option value="mech">Mech</option>
+      <option value="elemental">Elemental</option>
+      <option value="pirate">Pirate</option>
+      <option value="demon">Demon</option>
+      <option value="naga">Naga</option>
+      <option value="quilboar">Quilboar</option>
+      <option value="totem">Totem</option>
     </select>
     <div class="spacer"></div>
     <span class="count-badge" id="cardCount">0 cards</span>
@@ -564,7 +560,6 @@
           <select id="fCardType">
             <option value="minion">Minion</option>
             <option value="spell">Spell</option>
-            <option value="weapon">Weapon</option>
           </select>
         </div>
 
@@ -583,13 +578,31 @@
           </select>
         </div>
 
+        <div id="rowRace" class="full">
+          <label class="field-label" for="fRace">Race / Tribe <span class="note">(Minion only)</span></label>
+          <select id="fRace">
+            <option value="none">None</option>
+            <option value="murloc">Murloc</option>
+            <option value="undead">Undead</option>
+            <option value="beast">Beast</option>
+            <option value="dragon">Dragon</option>
+            <option value="mech">Mech</option>
+            <option value="elemental">Elemental</option>
+            <option value="pirate">Pirate</option>
+            <option value="demon">Demon</option>
+            <option value="naga">Naga</option>
+            <option value="quilboar">Quilboar</option>
+            <option value="totem">Totem</option>
+          </select>
+        </div>
+
         <div id="rowAttack">
           <label class="field-label" for="fAttack">Attack</label>
           <input type="number" id="fAttack" min="0" max="99" value="1" />
         </div>
 
         <div id="rowDefense">
-          <label class="field-label" for="fDefense" id="labelDefense">Defense / Health</label>
+          <label class="field-label" for="fDefense">Defense / Health</label>
           <input type="number" id="fDefense" min="0" max="99" value="1" />
         </div>
 
@@ -645,7 +658,12 @@
       'Combo', 'Overload', 'Spell Damage +1', 'Spell Damage +2',
     ];
 
-    const TYPE_EMOJI = { minion: '🗡️', spell: '✨', weapon: '⚔️' };
+    const RACE_EMOJI = {
+      murloc: '🐟', undead: '💀', beast: '🐾', dragon: '🐉',
+      mech: '⚙️', elemental: '🔥', pirate: '☠️', demon: '👹',
+      naga: '🐍', quilboar: '🐗', totem: '🪵', none: '🧙',
+    };
+    const TYPE_EMOJI = { minion: '🗡️', spell: '✨' };
 
     // ── State ──────────────────────────────────────────────
     let db = loadDB();
@@ -696,14 +714,17 @@
       // Art
       const art = document.createElement('div');
       art.className = 'art';
+      const artPlaceholder = card.cardType === 'minion' && card.race && card.race !== 'none'
+        ? (RACE_EMOJI[card.race] ?? '🗡️')
+        : (TYPE_EMOJI[card.cardType] ?? '🃏');
       if (card.picture) {
         const img = document.createElement('img');
         img.src = card.picture;
         img.alt = card.name;
-        img.onerror = () => { img.remove(); art.innerHTML = `<div class="art-placeholder">${TYPE_EMOJI[card.cardType] ?? '🃏'}</div>`; };
+        img.onerror = () => { img.remove(); art.innerHTML = `<div class="art-placeholder">${artPlaceholder}</div>`; };
         art.appendChild(img);
       } else {
-        art.innerHTML = `<div class="art-placeholder">${TYPE_EMOJI[card.cardType] ?? '🃏'}</div>`;
+        art.innerHTML = `<div class="art-placeholder">${artPlaceholder}</div>`;
       }
       frame.appendChild(art);
 
@@ -713,10 +734,14 @@
       banner.textContent = card.name || 'Unnamed';
       frame.appendChild(banner);
 
-      // Type strip
+      // Type strip — shows race for minions, type for spells
       const typeStrip = document.createElement('div');
       typeStrip.className = 'type-strip';
-      typeStrip.textContent = card.cardType.toUpperCase();
+      if (card.cardType === 'minion' && card.race && card.race !== 'none') {
+        typeStrip.textContent = card.race.toUpperCase();
+      } else {
+        typeStrip.textContent = card.cardType.toUpperCase();
+      }
       frame.appendChild(typeStrip);
 
       // Description box
@@ -733,24 +758,17 @@
       mana.textContent = card.manaCost ?? 0;
       wrapper.appendChild(mana);
 
-      // Attack / defense gems
-      if (card.cardType === 'minion' || card.cardType === 'weapon') {
+      // Attack / defense gems (minion only)
+      if (card.cardType === 'minion') {
         const atk = document.createElement('div');
         atk.className = 'gem-attack';
         atk.innerHTML = `<span>${card.attack ?? 0}</span>`;
         wrapper.appendChild(atk);
-      }
 
-      if (card.cardType === 'minion') {
         const def = document.createElement('div');
         def.className = 'gem-defense';
         def.textContent = card.defense ?? 1;
         wrapper.appendChild(def);
-      } else if (card.cardType === 'weapon') {
-        const dur = document.createElement('div');
-        dur.className = 'gem-durability';
-        dur.textContent = card.defense ?? 1;
-        wrapper.appendChild(dur);
       }
 
       wrapper.addEventListener('click', () => openEdit(card.id));
@@ -764,12 +782,14 @@
       const fType   = document.getElementById('filterType').value;
       const fMana   = document.getElementById('filterMana').value;
       const fRarity = document.getElementById('filterRarity').value;
+      const fRace   = document.getElementById('filterRace').value;
 
       let filtered = db.filter(c => {
         if (query && !c.name.toLowerCase().includes(query) &&
             !(c.description ?? '').toLowerCase().includes(query)) return false;
         if (fType   && c.cardType !== fType)   return false;
         if (fRarity && c.rarity   !== fRarity) return false;
+        if (fRace   && (c.race ?? 'none') !== fRace) return false;
         if (fMana !== '') {
           const mn = parseInt(fMana);
           if (mn === 10 ? (c.manaCost ?? 0) < 10 : (c.manaCost ?? 0) !== mn) return false;
@@ -813,17 +833,18 @@
     // ── Form helpers ───────────────────────────────────────
     function updateTypeFields() {
       const type = document.getElementById('fCardType').value;
-      const rowAtk = document.getElementById('rowAttack');
-      const rowDef = document.getElementById('rowDefense');
-      const lblDef = document.getElementById('labelDefense');
+      const rowAtk  = document.getElementById('rowAttack');
+      const rowDef  = document.getElementById('rowDefense');
+      const rowRace = document.getElementById('rowRace');
 
       if (type === 'spell') {
-        rowAtk.style.display = 'none';
-        rowDef.style.display = 'none';
+        rowAtk.style.display  = 'none';
+        rowDef.style.display  = 'none';
+        rowRace.style.display = 'none';
       } else {
-        rowAtk.style.display = '';
-        rowDef.style.display = '';
-        lblDef.textContent = type === 'weapon' ? 'Durability' : 'Defense / Health';
+        rowAtk.style.display  = '';
+        rowDef.style.display  = '';
+        rowRace.style.display = '';
       }
     }
 
@@ -835,6 +856,7 @@
       document.getElementById('fAttack').value = '1';
       document.getElementById('fDefense').value = '1';
       document.getElementById('fDesc').value = '';
+      document.getElementById('fRace').value = 'none';
       document.getElementById('fPicUrl').value = '';
       document.getElementById('fPicFile').value = '';
       document.getElementById('artPreview').innerHTML = '<span>No image selected</span>';
@@ -883,6 +905,7 @@
       document.getElementById('fAttack').value    = card.attack ?? 0;
       document.getElementById('fDefense').value   = card.defense ?? 1;
       document.getElementById('fDesc').value      = card.description ?? '';
+      document.getElementById('fRace').value      = card.race ?? 'none';
 
       const isUrl = typeof card.picture === 'string' && card.picture.startsWith('http');
       document.getElementById('fPicUrl').value = isUrl ? card.picture : '';
@@ -904,6 +927,7 @@
         rarity:      document.getElementById('fRarity').value,
         manaCost:    Math.max(0, parseInt(document.getElementById('fManaCost').value) || 0),
         description: document.getElementById('fDesc').value.trim(),
+        race:        cardType !== 'spell' ? document.getElementById('fRace').value : 'none',
         keywords:    [...selectedKw],
         picture:     picOverride !== undefined ? picOverride : null,
         createdAt:   editingId
@@ -1023,7 +1047,7 @@
       e.target.value = '';
     });
 
-    ['searchInput', 'filterType', 'filterMana', 'filterRarity'].forEach(id =>
+    ['searchInput', 'filterType', 'filterMana', 'filterRarity', 'filterRace'].forEach(id =>
       document.getElementById(id).addEventListener('input', renderGrid)
     );
 
