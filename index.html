@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cardlogy — Lobby</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --accent:   #c9a84c;
+      --accent2:  #e8c97a;
+      --green:    #3fb950;
+      --red:      #f85149;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --radius:   12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .logo h1 {
+      font-size: 2rem;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .logo p {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    .field { margin-bottom: 1.25rem; }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn-row.single { grid-template-columns: 1fr; }
+
+    button {
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0d1117;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* ── Lobby view ── */
+    .lobby-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .lobby-header h2 {
+      font-size: 1.1rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.4rem;
+    }
+
+    .status-dot.waiting { background: var(--muted); }
+    .status-dot.connected { background: var(--green); animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .room-code-box {
+      background: var(--bg);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .room-code-box span {
+      font-family: monospace;
+      font-size: 1.1rem;
+      letter-spacing: 0.15em;
+      color: var(--accent2);
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.75rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .players-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .player-slot {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      min-height: 54px;
+    }
+
+    .player-slot.filled { border-color: var(--accent); }
+
+    .player-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .player-slot.filled .player-avatar { background: var(--accent); color: #0d1117; }
+
+    .player-info { flex: 1; min-width: 0; }
+    .player-name { font-weight: 600; font-size: 0.95rem; }
+    .player-tag  { font-size: 0.75rem; color: var(--muted); }
+
+    .player-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      background: var(--border);
+      color: var(--muted);
+    }
+
+    .player-badge.host { background: #1f2a1a; color: var(--green); }
+    .player-badge.guest { background: #1a1f2a; color: #79c0ff; }
+
+    .empty-slot {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .waiting-msg {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 1.25rem;
+      animation: fadein 0.5s;
+    }
+
+    @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+    .connected-msg {
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--green);
+      margin-bottom: 1.25rem;
+      font-weight: 600;
+    }
+
+    .btn-start {
+      width: 100%;
+      padding: 0.85rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #0d1117;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Sections ── */
+    #setup-view, #lobby-view { display: none; }
+    #setup-view.active, #lobby-view.active { display: block; animation: fadein 0.3s; }
+
+    .error-msg {
+      color: var(--red);
+      font-size: 0.8rem;
+      margin-top: 0.4rem;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      margin: 1.25rem 0;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <h1>&#9824; Cardlogy</h1>
+    <p>2-Player Lobby</p>
+  </div>
+
+  <!-- ── Setup ── -->
+  <div id="setup-view" class="active">
+    <div class="field">
+      <label for="name-input">Your Name</label>
+      <input id="name-input" type="text" placeholder="Enter your name" maxlength="20" autocomplete="off" />
+      <div id="name-error" class="error-msg" hidden>Please enter a name.</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary" id="create-btn">Create Lobby</button>
+      <button class="btn-secondary" id="show-join-btn">Join Lobby</button>
+    </div>
+
+    <div id="join-section" hidden>
+      <div class="divider">or enter room code</div>
+      <div class="field">
+        <label for="room-input">Room Code</label>
+        <input id="room-input" type="text" placeholder="Paste code here" maxlength="36" autocomplete="off" />
+        <div id="room-error" class="error-msg" hidden>Invalid or missing room code.</div>
+      </div>
+      <div class="btn-row single">
+        <button class="btn-primary" id="join-btn">Join</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Lobby ── -->
+  <div id="lobby-view">
+    <div class="lobby-header">
+      <h2>Lobby</h2>
+      <span id="conn-status"><span class="status-dot waiting"></span><span id="conn-label">Connecting…</span></span>
+    </div>
+
+    <div id="room-code-section">
+      <label>Room Code — Share with your opponent</label>
+      <div class="room-code-box">
+        <span id="display-code">—</span>
+        <button class="copy-btn" id="copy-btn">Copy</button>
+      </div>
+    </div>
+
+    <div class="players-list">
+      <div class="player-slot filled" id="slot-1">
+        <div class="player-avatar" id="avatar-1">?</div>
+        <div class="player-info">
+          <div class="player-name" id="name-1">—</div>
+          <div class="player-tag">Player 1</div>
+        </div>
+        <span class="player-badge host" id="badge-1">Host</span>
+      </div>
+
+      <div class="player-slot" id="slot-2">
+        <div class="player-avatar" id="avatar-2">?</div>
+        <div class="player-info">
+          <div class="player-name" id="name-2"><span class="empty-slot">Waiting for opponent…</span></div>
+          <div class="player-tag">Player 2</div>
+        </div>
+        <span class="player-badge guest" id="badge-2" hidden>Guest</span>
+      </div>
+    </div>
+
+    <div id="waiting-msg" class="waiting-msg">Share the room code with your opponent to get started.</div>
+    <div id="connected-msg" class="connected-msg" hidden>Both players connected!</div>
+
+    <button class="btn-start" id="start-btn" disabled>Start Game</button>
+
+    <div class="btn-row single" style="margin-top:0.75rem">
+      <button class="btn-danger" id="leave-btn">Leave Lobby</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import Peer from 'peerjs';
+(function () {
+  'use strict';
+
+  // ── DOM refs ──────────────────────────────────────────────
+  const setupView   = document.getElementById('setup-view');
+  const lobbyView   = document.getElementById('lobby-view');
+  const nameInput   = document.getElementById('name-input');
+  const nameError   = document.getElementById('name-error');
+  const createBtn   = document.getElementById('create-btn');
+  const showJoinBtn = document.getElementById('show-join-btn');
+  const joinSection = document.getElementById('join-section');
+  const roomInput   = document.getElementById('room-input');
+  const roomError   = document.getElementById('room-error');
+  const joinBtn     = document.getElementById('join-btn');
+
+  const displayCode  = document.getElementById('display-code');
+  const copyBtn      = document.getElementById('copy-btn');
+  const connStatus   = document.getElementById('conn-status');
+  const connLabel    = document.getElementById('conn-label');
+
+  const slot1    = document.getElementById('slot-1');
+  const avatar1  = document.getElementById('avatar-1');
+  const name1    = document.getElementById('name-1');
+  const slot2    = document.getElementById('slot-2');
+  const avatar2  = document.getElementById('avatar-2');
+  const name2    = document.getElementById('name-2');
+  const badge2   = document.getElementById('badge-2');
+
+  const waitingMsg   = document.getElementById('waiting-msg');
+  const connectedMsg = document.getElementById('connected-msg');
+  const startBtn     = document.getElementById('start-btn');
+  const leaveBtn     = document.getElementById('leave-btn');
+  const roomCodeSection = document.getElementById('room-code-section');
+
+  // ── State ─────────────────────────────────────────────────
+  let peer = null;
+  let conn = null;
+  let isHost = false;
+  let myName = '';
+  let opponentName = '';
+
+  // ── Helpers ───────────────────────────────────────────────
+  function initial(name) {
+    return (name || '?').charAt(0).toUpperCase();
+  }
+
+  function showLobby() {
+    setupView.classList.remove('active');
+    lobbyView.classList.add('active');
+  }
+
+  function showSetup() {
+    lobbyView.classList.remove('active');
+    setupView.classList.add('active');
+  }
+
+  function setConnected(connected) {
+    const dot = connStatus.querySelector('.status-dot');
+    dot.className = 'status-dot ' + (connected ? 'connected' : 'waiting');
+    connLabel.textContent = connected ? 'Connected' : 'Waiting…';
+    waitingMsg.hidden = connected;
+    connectedMsg.hidden = !connected;
+    startBtn.disabled = !connected;
+    slot2.classList.toggle('filled', connected);
+  }
+
+  function fillSlot2(name) {
+    opponentName = name;
+    name2.innerHTML = '';
+    name2.textContent = name;
+    avatar2.textContent = initial(name);
+    badge2.hidden = false;
+    setConnected(true);
+  }
+
+  function clearSlot2() {
+    opponentName = '';
+    name2.innerHTML = '<span class="empty-slot">Waiting for opponent…</span>';
+    avatar2.textContent = '?';
+    badge2.hidden = true;
+    setConnected(false);
+  }
+
+  function getName() {
+    const n = nameInput.value.trim();
+    if (!n) { nameError.hidden = false; nameInput.focus(); return null; }
+    nameError.hidden = true;
+    return n;
+  }
+
+  function destroyPeer() {
+    if (conn) { try { conn.close(); } catch(e) {} conn = null; }
+    if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
+  }
+
+  // ── Sanitize incoming text to prevent XSS ────────────────
+  function sanitize(str) {
+    return String(str).replace(/[<>"'&]/g, c => ({
+      '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '&':'&amp;'
+    }[c]));
+  }
+
+  // ── Wire up a connection (shared for host/guest) ──────────
+  function wireConnection(c) {
+    conn = c;
+
+    conn.on('open', function () {
+      // Exchange names
+      conn.send({ type: 'hello', name: myName });
+    });
+
+    conn.on('data', function (data) {
+      if (!data || typeof data !== 'object') return;
+      if (data.type === 'hello') {
+        const safeName = sanitize(String(data.name || 'Opponent').slice(0, 20));
+        fillSlot2(safeName);
+      }
+    });
+
+    conn.on('close', function () {
+      clearSlot2();
+    });
+
+    conn.on('error', function (err) {
+      console.error('Connection error:', err);
+      clearSlot2();
+    });
+  }
+
+  // ── Create lobby ──────────────────────────────────────────
+  createBtn.addEventListener('click', function () {
+    const name = getName(); if (!name) return;
+    myName  = name;
+    isHost  = true;
+
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating…';
+
+    peer = new Peer(undefined, { debug: 0 });
+
+    peer.on('open', function (id) {
+      createBtn.disabled = false;
+      createBtn.textContent = 'Create Lobby';
+
+      // Populate host slot
+      name1.textContent = myName;
+      avatar1.textContent = initial(myName);
+
+      // Show room code
+      displayCode.textContent = id;
+      roomCodeSection.hidden = false;
+
+      setConnected(false);
+      showLobby();
+    });
+
+    peer.on('connection', function (c) {
+      // Only allow one guest
+      if (conn && conn.open) { c.close(); return; }
+      wireConnection(c);
+    });
+
+    peer.on('error', function (err) {
+      console.error('Peer error:', err);
+      createBtn.disabled = false;
+      createBtn.textContent = 'Create Lobby';
+    });
+  });
+
+  // ── Show join section ─────────────────────────────────────
+  showJoinBtn.addEventListener('click', function () {
+    joinSection.hidden = !joinSection.hidden;
+    if (!joinSection.hidden) roomInput.focus();
+  });
+
+  // ── Join lobby ────────────────────────────────────────────
+  joinBtn.addEventListener('click', function () {
+    const name = getName(); if (!name) return;
+    const code = roomInput.value.trim();
+    if (!code) { roomError.hidden = false; roomInput.focus(); return; }
+    roomError.hidden = true;
+
+    myName = name;
+    isHost = false;
+
+    joinBtn.disabled = true;
+    joinBtn.textContent = 'Joining…';
+
+    peer = new Peer(undefined, { debug: 0 });
+
+    peer.on('open', function () {
+      const c = peer.connect(code, { reliable: true });
+
+      c.on('open', function () {
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Join';
+
+        // Guest: show host in slot1 initially as unknown, fill on hello
+        name1.textContent = '…';
+        avatar1.textContent = '?';
+        // Guest in slot2
+        name2.innerHTML = '';
+        name2.textContent = myName;
+        avatar2.textContent = initial(myName);
+        badge2.hidden = false;
+
+        // Hide room code section for guest
+        roomCodeSection.hidden = true;
+
+        showLobby();
+        wireConnection(c);
+
+        // Override wireConnection's open handler — already open here
+        c.send({ type: 'hello', name: myName });
+      });
+
+      // When guest receives host's hello, put host in slot1
+      const origData = c._events && c._events['data'];
+      c.on('data', function (data) {
+        if (data && data.type === 'hello') {
+          const safeName = sanitize(String(data.name || 'Host').slice(0, 20));
+          name1.textContent = safeName;
+          avatar1.textContent = initial(safeName);
+          setConnected(true);
+        }
+      });
+
+      c.on('error', function (err) {
+        console.error('Connection error:', err);
+        roomError.textContent = 'Could not connect. Check the room code.';
+        roomError.hidden = false;
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Join';
+      });
+    });
+
+    peer.on('error', function (err) {
+      console.error('Peer error:', err);
+      roomError.textContent = 'Connection failed. Try again.';
+      roomError.hidden = false;
+      joinBtn.disabled = false;
+      joinBtn.textContent = 'Join';
+    });
+  });
+
+  // ── Host: fills slot2 on guest hello; also updates slot1 name from guest perspective
+  // ── (already handled via wireConnection + data events above)
+
+  // ── Copy room code ────────────────────────────────────────
+  copyBtn.addEventListener('click', function () {
+    const code = displayCode.textContent;
+    if (!code || code === '—') return;
+    navigator.clipboard.writeText(code).then(function () {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function () { copyBtn.textContent = 'Copy'; }, 2000);
+    }).catch(function () {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function () { copyBtn.textContent = 'Copy'; }, 2000);
+    });
+  });
+
+  // ── Leave lobby ───────────────────────────────────────────
+  leaveBtn.addEventListener('click', function () {
+    destroyPeer();
+    clearSlot2();
+    name1.textContent = '—';
+    avatar1.textContent = '?';
+    displayCode.textContent = '—';
+    roomCodeSection.hidden = false;
+    roomInput.value = '';
+    joinSection.hidden = true;
+    showSetup();
+  });
+
+  // ── Start game placeholder ────────────────────────────────
+  startBtn.addEventListener('click', function () {
+    // Game logic to be added later
+    alert('Game starting! (Logic to be added)');
+  });
+
+  // ── Clear errors on input ─────────────────────────────────
+  nameInput.addEventListener('input', function () { nameError.hidden = true; });
+  roomInput.addEventListener('input', function () {
+    roomError.textContent = 'Invalid or missing room code.';
+    roomError.hidden = true;
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "cardlogy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.2.5"
+  },
+  "dependencies": {
+    "peerjs": "^1.5.4"
+  }
+}
