@@ -918,17 +918,31 @@
   var TOPIC_PREFIX = 'cardlogy-v1/';
 
   // ─── Load session state from lobby ────────────────────────
+  // URL params (?role=host/guest&room=CODE) are the primary source of truth.
+  // sessionStorage is a fallback in case params are stripped.
   function loadSession() {
-    try { return JSON.parse(sessionStorage.getItem('cl_game') || 'null'); } catch { return null; }
+    var params = new URLSearchParams(window.location.search);
+    var urlRole = params.get('role');
+    var urlRoom = params.get('room');
+    var stored = null;
+    try { stored = JSON.parse(sessionStorage.getItem('cl_game') || 'null'); } catch {}
+    return {
+      myName:   (stored && stored.myName)   || 'Player',
+      oppName:  (stored && stored.oppName)  || 'Opponent',
+      myRole:   urlRole || (stored && stored.myRole)   || 'host',
+      roomCode: urlRoom || (stored && stored.roomCode) || null,
+      myDeck:   (stored && stored.myDeck)   || [],
+    };
   }
 
-  var session = loadSession();
-  // If no session (e.g., direct load for testing) use defaults
-  var myName       = (session && session.myName)       || 'Player';
-  var oppName      = (session && session.oppName)      || 'Opponent';
-  var myRole       = (session && session.myRole)       || 'host';  // 'host' | 'guest'
-  var roomCode     = (session && session.roomCode)     || null;
-  var myDeck       = (session && session.myDeck)       || [];
+  var session      = loadSession();
+  // Unique per-page-load ID — used to filter our own MQTT echoes.
+  var mySessionId  = 'gs-' + Math.random().toString(36).slice(2, 12);
+  var myName       = session.myName;
+  var oppName      = session.oppName;
+  var myRole       = session.myRole;   // 'host' | 'guest'
+  var roomCode     = session.roomCode;
+  var myDeck       = session.myDeck;
 
   // Host always goes first
   var amFirst = (myRole === 'host');
@@ -993,17 +1007,21 @@
     mqtt.on('message', function (t, buf) {
       var msg;
       try { msg = JSON.parse(buf.toString()); } catch { return; }
-      if (!msg || msg.from === myRole) return; // ignore own messages
-      // Handle game-start handshake (not wrapped in 'msg')
-      if (msg.type === 'game-start' && myRole === 'guest') {
+      if (!msg) return;
+      // Filter our own MQTT echoes by session ID (not by role, which may be wrong)
+      if (msg.sid === mySessionId) return;
+      // Handle game-start: whoever receives this is the guest
+      if (msg.type === 'game-start') {
         if (!guestReceivedStart) {
           guestReceivedStart = true;
-          startTurn('host'); // host goes first
+          myRole = 'guest'; // authoritative: receiver of game-start is always the guest
+          startTurn('host');
         }
         return;
       }
       // Guest-ready ACK received by host — host can now start turn 1
-      if (msg.type === 'guest-ready' && myRole === 'host') {
+      if (msg.type === 'guest-ready') {
+        myRole = 'host'; // authoritative: receiver of guest-ready is always the host
         onGuestReady();
         return;
       }
@@ -1016,7 +1034,7 @@
   function sendNet(data) {
     if (!mqtt || !mqtt.connected || !roomCode) return;
     mqtt.publish(TOPIC_PREFIX + roomCode,
-      JSON.stringify({ from: myRole, type: 'msg', data: data }), { qos: 1 });
+      JSON.stringify({ sid: mySessionId, from: myRole, type: 'msg', data: data }), { qos: 1 });
   }
 
   function handleNetMsg(data) {
@@ -1057,6 +1075,11 @@
     var deck = [];
     for (var i = 0; i < 30; i++) {
       deck.push(Object.assign({}, sample[i % sample.length]));
+    }
+    // Shuffle so each player draws different cards
+    for (var i = deck.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
     }
     return deck;
   }
@@ -1539,7 +1562,7 @@
         if (!_hostTurnPending) return;
         if (mqtt && mqtt.connected) {
           mqtt.publish(TOPIC_PREFIX + roomCode,
-            JSON.stringify({ from: 'host', type: 'game-start' }), { qos: 1 });
+            JSON.stringify({ sid: mySessionId, from: 'host', type: 'game-start' }), { qos: 1 });
         }
         attempts++;
         if (attempts < 8) setTimeout(sendGameStart, 800);
@@ -1554,7 +1577,7 @@
       function sendGuestReady() {
         if (mqtt && mqtt.connected) {
           mqtt.publish(TOPIC_PREFIX + roomCode,
-            JSON.stringify({ from: 'guest', type: 'guest-ready' }), { qos: 1 });
+            JSON.stringify({ sid: mySessionId, from: 'guest', type: 'guest-ready' }), { qos: 1 });
         }
       }
       sendGuestReady();

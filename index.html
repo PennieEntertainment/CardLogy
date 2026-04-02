@@ -1605,7 +1605,7 @@
                 myDeck:   gameDeck,
               }));
             } catch (e) { /* proceed anyway */ }
-            window.location.href = 'game.html';
+            window.location.href = 'game.html?role=guest&room=' + encodeURIComponent(roomCode);
           });
       }
     });
@@ -1677,7 +1677,7 @@
         // so the guest definitely receives 'start' before the WebSocket closes.
         var _navigated = false;
         function _goToGame() {
-          if (!_navigated) { _navigated = true; window.location.href = 'game.html'; }
+          if (!_navigated) { _navigated = true; window.location.href = 'game.html?role=host&room=' + encodeURIComponent(roomCode); }
         }
 
         if (mqttClient && mqttClient.connected && roomCode) {
