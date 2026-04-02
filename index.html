@@ -382,6 +382,291 @@
     }
 
     .logout-btn:hover { color: var(--red); }
+
+    /* ── Deck Builder Overlay ── */
+    #deck-view {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 200;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #deck-view.active { display: flex; }
+
+    .deck-topbar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.85rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .deck-topbar h2 {
+      font-size: 1.1rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      flex: 1;
+    }
+
+    .deck-filters {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .deck-filters input[type="text"],
+    .deck-filters select {
+      padding: 0.38rem 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.82rem;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .deck-filters input[type="text"] { min-width: 150px; }
+    .deck-filters input[type="text"]:focus,
+    .deck-filters select:focus { border-color: var(--accent); }
+    .deck-filters .spacer { flex: 1; }
+    .deck-filters .count-lbl {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .deck-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .deck-card-list-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .card-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.42rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: border-color 0.15s;
+    }
+    .card-row.clickable { cursor: pointer; }
+    .card-row.clickable:hover { border-color: var(--accent); }
+    .card-row.maxed { opacity: 0.4; }
+
+    .card-row-mana {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
+      border: 2px solid #aedaf7;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 900; color: #fff;
+      flex-shrink: 0;
+    }
+    .card-row-name {
+      flex: 1;
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-row-meta {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .card-row-rarity {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .rarity-common    { background: #6b7280; }
+    .rarity-rare      { background: #3b82f6; }
+    .rarity-epic      { background: #a855f7; }
+    .rarity-legendary { background: #f59e0b; }
+
+    .card-row-add {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 900;
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.2s;
+    }
+    .card-row-add:hover { opacity: 0.75; }
+    .card-row-add:disabled { opacity: 0.25; cursor: not-allowed; }
+
+    /* Deck Panel */
+    .deck-panel {
+      width: 260px;
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .deck-panel-header {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .deck-panel-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .deck-panel-count {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .deck-panel-count.full { color: var(--green); }
+
+    .deck-entries {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .deck-empty-msg {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding: 2rem 1rem;
+    }
+    .deck-entry {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.45rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 0.8rem;
+    }
+    .deck-entry-count {
+      font-weight: 700;
+      color: var(--accent2);
+      min-width: 20px;
+      font-size: 0.75rem;
+      text-align: center;
+    }
+    .deck-entry-mana {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
+      border: 1px solid #aedaf7;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 900; color: #fff;
+      flex-shrink: 0;
+    }
+    .deck-entry-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 500;
+    }
+    .deck-entry-remove {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .deck-entry-remove:hover { color: var(--red); background: rgba(248,81,73,0.1); }
+
+    .deck-panel-footer {
+      padding: 0.7rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      flex-shrink: 0;
+    }
+    .deck-progress {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .deck-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.2s;
+    }
+    .deck-progress-fill.full { background: var(--green); }
+    .deck-footer-status {
+      font-size: 0.73rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .deck-footer-status.ready { color: var(--green); font-weight: 600; }
+
+    /* Setup deck badge */
+    .deck-badge-row {
+      margin-top: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .deck-badge-row .deck-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .deck-badge-row.ready .deck-dot { background: var(--green); }
+    .deck-badge-row.ready { color: var(--green); }
+
+    /* Lobby deck tag on player slot */
+    .player-deck-tag {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+    .player-deck-tag.ready { color: var(--green); }
   </style>
 </head>
 <body>
@@ -453,6 +738,14 @@
       <button class="btn-secondary" id="show-join-btn">Join Lobby</button>
     </div>
 
+    <div class="btn-row single" style="margin-top:0.5rem">
+      <button class="btn-secondary" id="build-deck-btn">🃏 Build Deck</button>
+    </div>
+    <div class="deck-badge-row" id="setup-deck-badge">
+      <span class="deck-dot"></span>
+      <span id="setup-deck-text">No deck — build one before playing</span>
+    </div>
+
     <div id="join-section" hidden>
       <div class="divider">or enter room code</div>
       <div class="field">
@@ -487,6 +780,7 @@
         <div class="player-info">
           <div class="player-name" id="name-1">—</div>
           <div class="player-tag">Player 1</div>
+          <div class="player-deck-tag" id="deck-tag-1">No deck</div>
         </div>
         <span class="player-badge host" id="badge-1">Host</span>
       </div>
@@ -496,6 +790,7 @@
         <div class="player-info">
           <div class="player-name" id="name-2"><span class="empty-slot">Waiting for opponent…</span></div>
           <div class="player-tag">Player 2</div>
+          <div class="player-deck-tag" id="deck-tag-2"></div>
         </div>
         <span class="player-badge guest" id="badge-2" hidden>Guest</span>
       </div>
@@ -508,6 +803,70 @@
 
     <div class="btn-row single" style="margin-top:0.75rem">
       <button class="btn-danger" id="leave-btn">Leave Lobby</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Deck Builder Overlay ── -->
+<div id="deck-view">
+  <div class="deck-topbar">
+    <button class="btn-ghost btn-sm" id="deck-back-btn">← Back</button>
+    <h2>🃏 Build Your Deck</h2>
+    <button class="btn-primary btn-sm" id="deck-save-btn">Save Deck</button>
+  </div>
+
+  <div class="deck-filters">
+    <input type="text" id="deck-search" placeholder="Search cards…" />
+    <select id="deck-filter-type">
+      <option value="">All Types</option>
+      <option value="minion">Minion</option>
+      <option value="spell">Spell</option>
+    </select>
+    <select id="deck-filter-mana">
+      <option value="">Any Mana</option>
+      <option value="0">0</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10+</option>
+    </select>
+    <select id="deck-filter-rarity">
+      <option value="">All Rarities</option>
+      <option value="common">Common</option>
+      <option value="rare">Rare</option>
+      <option value="epic">Epic</option>
+      <option value="legendary">Legendary</option>
+    </select>
+    <div class="spacer"></div>
+    <span class="count-lbl" id="deck-available-count">0 cards</span>
+  </div>
+
+  <div class="deck-body">
+    <!-- Card list -->
+    <div class="deck-card-list-wrap" id="deck-card-list"></div>
+
+    <!-- Deck panel -->
+    <div class="deck-panel">
+      <div class="deck-panel-header">
+        <span class="deck-panel-title">My Deck</span>
+        <span class="deck-panel-count" id="deck-total-count">0 / 30</span>
+      </div>
+      <div class="deck-entries" id="deck-entries">
+        <div class="deck-empty-msg">Add cards from the list to build your deck.</div>
+      </div>
+      <div class="deck-panel-footer">
+        <div class="deck-progress">
+          <div class="deck-progress-fill" id="deck-progress-fill" style="width:0%"></div>
+        </div>
+        <div class="deck-footer-status" id="deck-footer-status">0 of 30 cards</div>
+        <button class="btn-ghost btn-sm" id="deck-clear-btn" style="width:100%">Clear Deck</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1097,5 +1456,288 @@
 
 })();
 </script>
-</body>
-</html>
+
+<script>
+// ── Deck Builder ──────────────────────────────────────────────────────────────
+(function () {
+  'use strict';
+
+  var DECK_STORAGE_KEY = 'cl_deck_v1';
+  var MAX_DECK_SIZE    = 30;
+  var allCards         = [];
+  var myDeck           = {};   // { cardId: count }
+
+  // ── DOM refs ──────────────────────────────────────────────
+  var deckView          = document.getElementById('deck-view');
+  var buildDeckBtn      = document.getElementById('build-deck-btn');
+  var deckBackBtn       = document.getElementById('deck-back-btn');
+  var deckSaveBtn       = document.getElementById('deck-save-btn');
+  var deckClearBtn      = document.getElementById('deck-clear-btn');
+  var deckSearch        = document.getElementById('deck-search');
+  var deckFilterType    = document.getElementById('deck-filter-type');
+  var deckFilterMana    = document.getElementById('deck-filter-mana');
+  var deckFilterRarity  = document.getElementById('deck-filter-rarity');
+  var deckCardList      = document.getElementById('deck-card-list');
+  var deckEntries       = document.getElementById('deck-entries');
+  var deckTotalCount    = document.getElementById('deck-total-count');
+  var deckProgressFill  = document.getElementById('deck-progress-fill');
+  var deckFooterStatus  = document.getElementById('deck-footer-status');
+  var deckAvailCount    = document.getElementById('deck-available-count');
+  var setupDeckBadge    = document.getElementById('setup-deck-badge');
+  var setupDeckText     = document.getElementById('setup-deck-text');
+  var deckTag1          = document.getElementById('deck-tag-1');
+
+  // ── Storage helpers ───────────────────────────────────────
+  function getUsername() {
+    try { var s = JSON.parse(sessionStorage.getItem('cl_user') || 'null'); return s && s.username ? s.username : null; }
+    catch { return null; }
+  }
+
+  function deckKey() {
+    var u = getUsername();
+    return u ? DECK_STORAGE_KEY + '_' + u.toLowerCase() : DECK_STORAGE_KEY + '_anon';
+  }
+
+  function loadDeck() {
+    try { return JSON.parse(localStorage.getItem(deckKey()) || '{}'); } catch { return {}; }
+  }
+
+  function saveDeck(deck) {
+    localStorage.setItem(deckKey(), JSON.stringify(deck));
+  }
+
+  // ── Count helpers ─────────────────────────────────────────
+  function totalCards(deck) {
+    return Object.values(deck).reduce(function (s, n) { return s + n; }, 0);
+  }
+
+  function maxCopies(card) {
+    return card.rarity === 'legendary' ? 1 : 2;
+  }
+
+  // ── Sanitize text (no HTML injection) ─────────────────────
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // ── Load cards from cards.json ────────────────────────────
+  function loadCards() {
+    return fetch('./cards.json')
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .catch(function () { return []; });
+  }
+
+  // ── Render the available card list ────────────────────────
+  function renderCardList() {
+    var query   = deckSearch.value.toLowerCase().trim();
+    var fType   = deckFilterType.value;
+    var fMana   = deckFilterMana.value;
+    var fRarity = deckFilterRarity.value;
+
+    var filtered = allCards.filter(function (c) {
+      if (query && !c.name.toLowerCase().includes(query) &&
+          !(c.description || '').toLowerCase().includes(query)) return false;
+      if (fType   && c.cardType !== fType)   return false;
+      if (fRarity && c.rarity   !== fRarity) return false;
+      if (fMana !== '') {
+        var mn = parseInt(fMana);
+        if (mn === 10 ? (c.manaCost || 0) < 10 : (c.manaCost || 0) !== mn) return false;
+      }
+      return true;
+    });
+
+    filtered.sort(function (a, b) {
+      return (a.manaCost || 0) - (b.manaCost || 0) || a.name.localeCompare(b.name);
+    });
+
+    deckAvailCount.textContent = filtered.length + ' card' + (filtered.length !== 1 ? 's' : '');
+
+    if (filtered.length === 0) {
+      deckCardList.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:2rem;text-align:center">No cards match your filters.</div>';
+      return;
+    }
+
+    deckCardList.innerHTML = '';
+    var total = totalCards(myDeck);
+
+    filtered.forEach(function (card) {
+      var inDeck  = myDeck[card.id] || 0;
+      var max     = maxCopies(card);
+      var atMax   = inDeck >= max || total >= MAX_DECK_SIZE;
+
+      var row = document.createElement('div');
+      row.className = 'card-row' + (atMax ? ' maxed' : ' clickable');
+
+      var rarityClass = 'rarity-' + (card.rarity || 'common');
+
+      row.innerHTML =
+        '<div class="card-row-mana">' + esc(String(card.manaCost || 0)) + '</div>' +
+        '<div class="card-row-name">' + esc(card.name || 'Unnamed') + '</div>' +
+        '<div class="card-row-meta">' + esc(card.cardType || '') + '</div>' +
+        '<div class="card-row-rarity ' + rarityClass + '"></div>' +
+        '<button class="card-row-add" title="Add to deck"' + (atMax ? ' disabled' : '') + '>+</button>';
+
+      var addBtn = row.querySelector('.card-row-add');
+      addBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        addToDeck(card);
+      });
+      if (!atMax) {
+        row.addEventListener('click', function () { addToDeck(card); });
+      }
+
+      deckCardList.appendChild(row);
+    });
+  }
+
+  // ── Render the deck panel ─────────────────────────────────
+  function renderDeckPanel() {
+    var total = totalCards(myDeck);
+    var pct   = Math.round((total / MAX_DECK_SIZE) * 100);
+
+    deckTotalCount.textContent = total + ' / ' + MAX_DECK_SIZE;
+    deckTotalCount.className = 'deck-panel-count' + (total >= MAX_DECK_SIZE ? ' full' : '');
+    deckProgressFill.style.width = pct + '%';
+    deckProgressFill.className = 'deck-progress-fill' + (total >= MAX_DECK_SIZE ? ' full' : '');
+
+    if (total >= MAX_DECK_SIZE) {
+      deckFooterStatus.textContent = 'Deck is full!';
+      deckFooterStatus.className = 'deck-footer-status ready';
+    } else {
+      deckFooterStatus.textContent = total + ' of ' + MAX_DECK_SIZE + ' cards';
+      deckFooterStatus.className = 'deck-footer-status';
+    }
+
+    if (total === 0) {
+      deckEntries.innerHTML = '<div class="deck-empty-msg">Add cards from the list to build your deck.</div>';
+      return;
+    }
+
+    // Group → sort by mana then name
+    var entries = [];
+    Object.keys(myDeck).forEach(function (id) {
+      var card = allCards.find(function (c) { return c.id === id; });
+      if (card && myDeck[id] > 0) entries.push({ card: card, count: myDeck[id] });
+    });
+    entries.sort(function (a, b) {
+      return (a.card.manaCost || 0) - (b.card.manaCost || 0) || a.card.name.localeCompare(b.card.name);
+    });
+
+    deckEntries.innerHTML = '';
+    entries.forEach(function (e) {
+      var entry = document.createElement('div');
+      entry.className = 'deck-entry';
+      entry.innerHTML =
+        '<span class="deck-entry-count">' + e.count + 'x</span>' +
+        '<span class="deck-entry-mana">' + esc(String(e.card.manaCost || 0)) + '</span>' +
+        '<span class="deck-entry-name">' + esc(e.card.name || 'Unnamed') + '</span>' +
+        '<button class="deck-entry-remove" title="Remove one">−</button>';
+
+      entry.querySelector('.deck-entry-remove').addEventListener('click', function () {
+        removeFromDeck(e.card);
+      });
+      deckEntries.appendChild(entry);
+    });
+  }
+
+  // ── Add / remove ──────────────────────────────────────────
+  function addToDeck(card) {
+    var total = totalCards(myDeck);
+    if (total >= MAX_DECK_SIZE) return;
+    var inDeck = myDeck[card.id] || 0;
+    if (inDeck >= maxCopies(card)) return;
+    myDeck[card.id] = inDeck + 1;
+    renderCardList();
+    renderDeckPanel();
+  }
+
+  function removeFromDeck(card) {
+    if (!myDeck[card.id]) return;
+    myDeck[card.id]--;
+    if (myDeck[card.id] <= 0) delete myDeck[card.id];
+    renderCardList();
+    renderDeckPanel();
+  }
+
+  // ── Update setup badge and lobby deck tag ─────────────────
+  function refreshBadge() {
+    var deck  = loadDeck();
+    var total = totalCards(deck);
+    if (total > 0) {
+      setupDeckText.textContent = total + '/30 cards in deck';
+      setupDeckBadge.className = 'deck-badge-row' + (total >= MAX_DECK_SIZE ? ' ready' : '');
+    } else {
+      setupDeckText.textContent = 'No deck — build one before playing';
+      setupDeckBadge.className = 'deck-badge-row';
+    }
+    if (deckTag1) {
+      if (total > 0) {
+        deckTag1.textContent = total + '/30 cards';
+        deckTag1.className = 'player-deck-tag' + (total >= MAX_DECK_SIZE ? ' ready' : '');
+      } else {
+        deckTag1.textContent = 'No deck';
+        deckTag1.className = 'player-deck-tag';
+      }
+    }
+  }
+
+  // ── Open / close deck view ────────────────────────────────
+  function openDeckView() {
+    myDeck = loadDeck();
+    loadCards().then(function (cards) {
+      allCards = cards;
+      renderCardList();
+      renderDeckPanel();
+    });
+    document.querySelector('.card').style.display = 'none';
+    deckView.classList.add('active');
+  }
+
+  function closeDeckView() {
+    deckView.classList.remove('active');
+    document.querySelector('.card').style.display = '';
+    refreshBadge();
+  }
+
+  // ── Event listeners ───────────────────────────────────────
+  buildDeckBtn.addEventListener('click', openDeckView);
+
+  deckBackBtn.addEventListener('click', closeDeckView);
+
+  deckSaveBtn.addEventListener('click', function () {
+    saveDeck(myDeck);
+    var total = totalCards(myDeck);
+    deckSaveBtn.textContent = '✓ Saved!';
+    setTimeout(function () { deckSaveBtn.textContent = 'Save Deck'; }, 1500);
+    refreshBadge();
+  });
+
+  deckClearBtn.addEventListener('click', function () {
+    if (!confirm('Clear your entire deck?')) return;
+    myDeck = {};
+    renderCardList();
+    renderDeckPanel();
+  });
+
+  deckSearch.addEventListener('input', renderCardList);
+  deckFilterType.addEventListener('change', renderCardList);
+  deckFilterMana.addEventListener('change', renderCardList);
+  deckFilterRarity.addEventListener('change', renderCardList);
+
+  // Refresh badge whenever user enters setup
+  var observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      if (m.target.id === 'setup-view' && m.target.classList.contains('active')) {
+        refreshBadge();
+      }
+    });
+  });
+  var setupView2 = document.getElementById('setup-view');
+  if (setupView2) observer.observe(setupView2, { attributes: true, attributeFilter: ['class'] });
+
+  // Initial badge on page load
+  refreshBadge();
+})();
+</script>
