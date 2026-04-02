@@ -303,7 +303,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.1.4</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.1.5</div>
 
 <div class="card">
   <div class="logo">
@@ -480,31 +480,35 @@
     if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
   }
 
-  // ── Shared PeerJS config ──────────────────────────────────
-  const peerCfg = {
-    debug: 0,
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        {
-          urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        }
-      ]
-    }
-  };
+  // ── Build PeerJS config with time-limited TURN credentials ─
+  // staticauth.openrelay.metered.ca uses RFC 5389 HMAC-SHA1 auth
+  // with the publicly documented shared secret.
+  async function getPeerCfg() {
+    const secret = 'openrelayprojectsecret';
+    const expiry = Math.floor(Date.now() / 1000) + 86400; // valid 24h
+    const username = String(expiry);
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw', enc.encode(secret),
+      { name: 'HMAC', hash: 'SHA-1' },
+      false, ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(username));
+    const credential = btoa(String.fromCharCode(...new Uint8Array(sig)));
+    return {
+      debug: 0,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'turn:staticauth.openrelay.metered.ca:80',               username, credential },
+          { urls: 'turn:staticauth.openrelay.metered.ca:80?transport=tcp',  username, credential },
+          { urls: 'turn:staticauth.openrelay.metered.ca:443',              username, credential },
+          { urls: 'turn:staticauth.openrelay.metered.ca:443?transport=tcp', username, credential }
+        ]
+      }
+    };
+  }
 
   // ── Sanitize incoming text to prevent XSS ────────────────
   function sanitize(str) {
@@ -547,7 +551,7 @@
   }
 
   // ── Create lobby ──────────────────────────────────────────
-  createBtn.addEventListener('click', function () {
+  createBtn.addEventListener('click', async function () {
     const name = getName(); if (!name) return;
     myName  = name;
     isHost  = true;
@@ -555,6 +559,7 @@
     createBtn.disabled = true;
     createBtn.textContent = 'Creating…';
 
+    const peerCfg = await getPeerCfg();
     peer = new Peer(undefined, peerCfg);
 
     peer.on('open', function (id) {
@@ -593,7 +598,7 @@
   });
 
   // ── Join lobby ────────────────────────────────────────────
-  joinBtn.addEventListener('click', function () {
+  joinBtn.addEventListener('click', async function () {
     const name = getName(); if (!name) return;
     const code = roomInput.value.trim();
     if (!code) { roomError.hidden = false; roomInput.focus(); return; }
@@ -607,6 +612,7 @@
 
     destroyPeer();
 
+    const peerCfg = await getPeerCfg();
     peer = new Peer(undefined, peerCfg);
 
     var joinTimeout = setTimeout(function () {
