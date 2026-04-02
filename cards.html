@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CardLogy — Card Database</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  #30363d;
+      --accent:  #c9a84c;
+      --accent2: #e8c97a;
+      --green:   #3fb950;
+      --red:     #f85149;
+      --blue:    #58a6ff;
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+      --radius:  12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.9rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-right: auto;
+    }
+
+    header a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    header a:hover { color: var(--text); }
+
+    /* ── Toolbar ──────────────────────────── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.8rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .toolbar input[type="text"],
+    .toolbar select {
+      padding: 0.45rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+    .toolbar input[type="text"] { min-width: 200px; cursor: text; }
+    .toolbar input[type="text"]:focus,
+    .toolbar select:focus { border-color: var(--accent); }
+
+    .spacer { flex: 1; }
+
+    .count-badge {
+      background: var(--border);
+      color: var(--muted);
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    /* ── Buttons ──────────────────────────── */
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      font-family: inherit;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary  { background: var(--accent);     color: #0d1117; }
+    .btn-danger   { background: var(--red);         color: #fff; }
+    .btn-ghost    { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm       { padding: 0.3rem 0.65rem; font-size: 0.8rem; }
+
+    /* ── Card Grid ────────────────────────── */
+    .grid-container {
+      padding: 1.75rem 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      gap: 2.5rem 1.75rem;
+      justify-items: center;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--muted);
+    }
+    .empty-state h2 { color: var(--text); margin-bottom: 0.5rem; font-size: 1.2rem; }
+
+    /* ── Hearthstone Card Frame ───────────── */
+    .hs-card {
+      position: relative;
+      width: 185px;
+      height: 265px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      overflow: visible;
+      flex-shrink: 0;
+    }
+
+    .hs-card:hover {
+      transform: translateY(-8px) scale(1.04);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.65);
+      z-index: 10;
+    }
+
+    /* inner frame clips the art */
+    .hs-card .frame {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+    }
+
+    /* Type backgrounds */
+    .hs-card.type-minion .frame { background: linear-gradient(170deg, #1a2840 0%, #0d1825 100%); }
+    .hs-card.type-spell   .frame { background: linear-gradient(170deg, #2a1a44 0%, #160d30 100%); }
+    .hs-card.type-weapon  .frame { background: linear-gradient(170deg, #3e2510 0%, #201208 100%); }
+
+    /* Rarity borders */
+    .hs-card.rarity-common    .frame { border: 2px solid #6b7280; }
+    .hs-card.rarity-rare      .frame { border: 2px solid #3b82f6; box-shadow: 0 0 12px rgba(59,130,246,0.25); }
+    .hs-card.rarity-epic      .frame { border: 2px solid #a855f7; box-shadow: 0 0 12px rgba(168,85,247,0.3); }
+    .hs-card.rarity-legendary .frame { border: 2px solid #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.45); }
+
+    /* Art area */
+    .hs-card .art {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 148px;
+      background: #111827;
+      overflow: hidden;
+    }
+
+    .hs-card .art img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hs-card .art-placeholder {
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      opacity: 0.25;
+    }
+
+    /* Name banner */
+    .hs-card .name-banner {
+      position: absolute;
+      left: 12px; right: 12px;
+      top: 138px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(201,168,76,0.9) 18%,
+        rgba(232,201,122,0.97) 50%,
+        rgba(201,168,76,0.9) 82%,
+        transparent 100%
+      );
+      text-align: center;
+      padding: 4px 0;
+      font-size: 0.77rem;
+      font-weight: 800;
+      color: #0d1117;
+      border-radius: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 2;
+      letter-spacing: 0.03em;
+    }
+
+    /* Type strip */
+    .hs-card .type-strip {
+      position: absolute;
+      left: 0; right: 0;
+      top: 162px;
+      text-align: center;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      z-index: 2;
+    }
+
+    /* Description box */
+    .hs-card .desc-box {
+      position: absolute;
+      left: 10px; right: 10px;
+      top: 175px; bottom: 10px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.05);
+      padding: 5px 7px;
+      font-size: 0.6rem;
+      line-height: 1.45;
+      color: #c9d1d9;
+      overflow: hidden;
+      z-index: 2;
+      font-style: italic;
+    }
+
+    .hs-card .desc-box .kw {
+      color: #ffd700;
+      font-weight: 800;
+      font-style: normal;
+    }
+
+    /* Mana gem — top-left */
+    .hs-card .gem-mana {
+      position: absolute;
+      top: -10px; left: -10px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
+      border: 2px solid #aedaf7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    }
+
+    /* Attack gem — bottom-left (rotated square / diamond) */
+    .hs-card .gem-attack {
+      position: absolute;
+      bottom: -10px; left: -10px;
+      width: 40px; height: 40px;
+      background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
+      border: 2px solid #ffe49e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      border-radius: 8px;
+      transform: rotate(45deg);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    }
+    .hs-card .gem-attack span { transform: rotate(-45deg); display: block; }
+
+    /* Health orb — bottom-right */
+    .hs-card .gem-defense {
+      position: absolute;
+      bottom: -10px; right: -10px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
+      border: 2px solid #ffb3b3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    }
+
+    /* Durability orb (weapon) — teal */
+    .hs-card .gem-durability {
+      position: absolute;
+      bottom: -10px; right: -10px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #80ffe8, #00897b 55%, #004d40);
+      border: 2px solid #80cbc4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    }
+
+    /* ── Modal ────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 700px;
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .modal h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1.25rem;
+      color: var(--accent);
+    }
+
+    .modal .close-btn {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: none; border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 0.3rem 0.5rem;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .modal .close-btn:hover { background: var(--border); color: var(--text); }
+
+    /* Form layout */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .field-label {
+      display: block;
+      font-size: 0.73rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+    }
+    .field-label .note {
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="url"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 0.55rem 0.8rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+
+    /* Number inputs */
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+
+    /* File input */
+    .file-input-wrapper {
+      position: relative;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 0.45rem 0.75rem;
+      background: var(--bg);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    input[type="file"]:hover { border-color: var(--accent); }
+
+    /* Keyword chips */
+    .keywords-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.4rem;
+    }
+
+    .kw-chip {
+      padding: 0.22rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .kw-chip:hover { border-color: var(--accent2); color: var(--accent2); }
+    .kw-chip.selected {
+      background: rgba(201,168,76,0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Art preview */
+    .art-preview {
+      width: 100%;
+      height: 110px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+    .art-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+    .modal-footer {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="logo">CardLogy — Cards</span>
+    <a href="index.html">← Lobby</a>
+    <button class="btn-primary" id="btnNew">+ New Card</button>
+  </header>
+
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Search by name or text…" />
+    <select id="filterType">
+      <option value="">All Types</option>
+      <option value="minion">Minion</option>
+      <option value="spell">Spell</option>
+      <option value="weapon">Weapon</option>
+    </select>
+    <select id="filterMana">
+      <option value="">Any Mana</option>
+      <option value="0">0</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10+</option>
+    </select>
+    <select id="filterRarity">
+      <option value="">All Rarities</option>
+      <option value="common">Common</option>
+      <option value="rare">Rare</option>
+      <option value="epic">Epic</option>
+      <option value="legendary">Legendary</option>
+    </select>
+    <div class="spacer"></div>
+    <span class="count-badge" id="cardCount">0 cards</span>
+    <button class="btn-ghost btn-sm" id="btnImport">Import JSON</button>
+    <button class="btn-ghost btn-sm" id="btnExport">Export JSON</button>
+  </div>
+
+  <div class="grid-container" id="cardGrid">
+    <div class="empty-state">
+      <h2>No cards yet</h2>
+      <p>Click "+ New Card" to add your first card to the database.</p>
+    </div>
+  </div>
+
+  <!-- ── Add / Edit Modal ───────────────────── -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <button class="close-btn" id="modalClose">✕</button>
+      <h2 id="modalTitle">New Card</h2>
+
+      <div class="form-grid">
+
+        <div>
+          <label class="field-label" for="fName">Name</label>
+          <input type="text" id="fName" placeholder="Card name" maxlength="40" />
+        </div>
+
+        <div>
+          <label class="field-label" for="fCardType">Type</label>
+          <select id="fCardType">
+            <option value="minion">Minion</option>
+            <option value="spell">Spell</option>
+            <option value="weapon">Weapon</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="field-label" for="fManaCost">Mana Cost</label>
+          <input type="number" id="fManaCost" min="0" max="20" value="1" />
+        </div>
+
+        <div>
+          <label class="field-label" for="fRarity">Rarity</label>
+          <select id="fRarity">
+            <option value="common">Common</option>
+            <option value="rare">Rare</option>
+            <option value="epic">Epic</option>
+            <option value="legendary">Legendary</option>
+          </select>
+        </div>
+
+        <div id="rowAttack">
+          <label class="field-label" for="fAttack">Attack</label>
+          <input type="number" id="fAttack" min="0" max="99" value="1" />
+        </div>
+
+        <div id="rowDefense">
+          <label class="field-label" for="fDefense" id="labelDefense">Defense / Health</label>
+          <input type="number" id="fDefense" min="0" max="99" value="1" />
+        </div>
+
+        <div class="full">
+          <label class="field-label" for="fDesc">
+            Description
+            <span class="note"> — keyword interpreter (Taunt, Battlecry, etc. will highlight)</span>
+          </label>
+          <textarea id="fDesc" placeholder="e.g. Taunt. Battlecry: Deal 2 damage to a random enemy."></textarea>
+        </div>
+
+        <div class="full">
+          <label class="field-label">Keywords <span class="note">(click to toggle)</span></label>
+          <div class="keywords-row" id="kwChips"></div>
+        </div>
+
+        <div class="full">
+          <label class="field-label" for="fPicUrl">Picture URL</label>
+          <input type="url" id="fPicUrl" placeholder="https://example.com/art.png" />
+        </div>
+
+        <div class="full">
+          <label class="field-label" for="fPicFile">
+            — or upload an image <span class="note">(stored locally)</span>
+          </label>
+          <input type="file" id="fPicFile" accept="image/*" />
+          <div class="art-preview" id="artPreview">
+            <span>No image selected</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-danger btn-sm" id="btnDeleteCard" style="display:none; margin-right:auto;">Delete Card</button>
+        <button class="btn-ghost" id="btnCancel">Cancel</button>
+        <button class="btn-primary" id="btnSave">Save Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for JSON import -->
+  <input type="file" id="importFile" accept=".json" style="display:none" />
+
+  <script>
+    // ── Constants ──────────────────────────────────────────
+    const STORAGE_KEY = 'cardlogy_cards_v1';
+
+    const KEYWORDS = [
+      'Taunt', 'Charge', 'Rush', 'Divine Shield', 'Stealth', 'Poisonous',
+      'Lifesteal', 'Freeze', 'Windfury', 'Mega-Windfury', 'Immune', 'Reborn',
+      'Battlecry', 'Deathrattle', 'Discover', 'Overkill', 'Echo', 'Silence',
+      'Combo', 'Overload', 'Spell Damage +1', 'Spell Damage +2',
+    ];
+
+    const TYPE_EMOJI = { minion: '🗡️', spell: '✨', weapon: '⚔️' };
+
+    // ── State ──────────────────────────────────────────────
+    let db = loadDB();
+    let editingId = null;
+    let selectedKw = new Set();
+
+    // ── Persistence ────────────────────────────────────────
+    function loadDB() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []; }
+      catch { return []; }
+    }
+
+    function saveDB() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    }
+
+    function genId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    // ── Keyword highlighting (XSS-safe) ───────────────────
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    function highlightKeywords(text) {
+      if (!text) return '';
+      const escaped = escapeHtml(text);
+      // Build pattern from longest keyword to shortest (avoid partial matches)
+      const sorted = [...KEYWORDS].sort((a, b) => b.length - a.length);
+      const pattern = sorted.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      return escaped.replace(new RegExp(`(${pattern})`, 'gi'),
+        '<span class="kw">$1</span>'
+      );
+    }
+
+    // ── Build a single card element ────────────────────────
+    function buildCardEl(card) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `hs-card type-${card.cardType} rarity-${card.rarity}`;
+      wrapper.dataset.id = card.id;
+
+      const frame = document.createElement('div');
+      frame.className = 'frame';
+
+      // Art
+      const art = document.createElement('div');
+      art.className = 'art';
+      if (card.picture) {
+        const img = document.createElement('img');
+        img.src = card.picture;
+        img.alt = card.name;
+        img.onerror = () => { img.remove(); art.innerHTML = `<div class="art-placeholder">${TYPE_EMOJI[card.cardType] ?? '🃏'}</div>`; };
+        art.appendChild(img);
+      } else {
+        art.innerHTML = `<div class="art-placeholder">${TYPE_EMOJI[card.cardType] ?? '🃏'}</div>`;
+      }
+      frame.appendChild(art);
+
+      // Name banner
+      const banner = document.createElement('div');
+      banner.className = 'name-banner';
+      banner.textContent = card.name || 'Unnamed';
+      frame.appendChild(banner);
+
+      // Type strip
+      const typeStrip = document.createElement('div');
+      typeStrip.className = 'type-strip';
+      typeStrip.textContent = card.cardType.toUpperCase();
+      frame.appendChild(typeStrip);
+
+      // Description box
+      const desc = document.createElement('div');
+      desc.className = 'desc-box';
+      desc.innerHTML = highlightKeywords(card.description ?? '');
+      frame.appendChild(desc);
+
+      wrapper.appendChild(frame);
+
+      // Mana gem
+      const mana = document.createElement('div');
+      mana.className = 'gem-mana';
+      mana.textContent = card.manaCost ?? 0;
+      wrapper.appendChild(mana);
+
+      // Attack / defense gems
+      if (card.cardType === 'minion' || card.cardType === 'weapon') {
+        const atk = document.createElement('div');
+        atk.className = 'gem-attack';
+        atk.innerHTML = `<span>${card.attack ?? 0}</span>`;
+        wrapper.appendChild(atk);
+      }
+
+      if (card.cardType === 'minion') {
+        const def = document.createElement('div');
+        def.className = 'gem-defense';
+        def.textContent = card.defense ?? 1;
+        wrapper.appendChild(def);
+      } else if (card.cardType === 'weapon') {
+        const dur = document.createElement('div');
+        dur.className = 'gem-durability';
+        dur.textContent = card.defense ?? 1;
+        wrapper.appendChild(dur);
+      }
+
+      wrapper.addEventListener('click', () => openEdit(card.id));
+      return wrapper;
+    }
+
+    // ── Render grid ────────────────────────────────────────
+    function renderGrid() {
+      const grid = document.getElementById('cardGrid');
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const fType   = document.getElementById('filterType').value;
+      const fMana   = document.getElementById('filterMana').value;
+      const fRarity = document.getElementById('filterRarity').value;
+
+      let filtered = db.filter(c => {
+        if (query && !c.name.toLowerCase().includes(query) &&
+            !(c.description ?? '').toLowerCase().includes(query)) return false;
+        if (fType   && c.cardType !== fType)   return false;
+        if (fRarity && c.rarity   !== fRarity) return false;
+        if (fMana !== '') {
+          const mn = parseInt(fMana);
+          if (mn === 10 ? (c.manaCost ?? 0) < 10 : (c.manaCost ?? 0) !== mn) return false;
+        }
+        return true;
+      });
+
+      // Sort: mana cost ASC, then alphabetical
+      filtered.sort((a, b) => (a.manaCost ?? 0) - (b.manaCost ?? 0) || a.name.localeCompare(b.name));
+
+      grid.innerHTML = '';
+      if (filtered.length === 0) {
+        const msg = db.length === 0
+          ? ['No cards yet', 'Click "+ New Card" to add your first card.']
+          : ['No results', 'Try adjusting your filters.'];
+        grid.innerHTML = `<div class="empty-state"><h2>${msg[0]}</h2><p>${msg[1]}</p></div>`;
+      } else {
+        filtered.forEach(c => grid.appendChild(buildCardEl(c)));
+      }
+
+      document.getElementById('cardCount').textContent =
+        `${db.length} card${db.length !== 1 ? 's' : ''}`;
+    }
+
+    // ── Keyword chips ──────────────────────────────────────
+    function renderKwChips() {
+      const container = document.getElementById('kwChips');
+      container.innerHTML = '';
+      KEYWORDS.forEach(kw => {
+        const chip = document.createElement('span');
+        chip.className = 'kw-chip' + (selectedKw.has(kw) ? ' selected' : '');
+        chip.textContent = kw;
+        chip.addEventListener('click', () => {
+          selectedKw.has(kw) ? selectedKw.delete(kw) : selectedKw.add(kw);
+          chip.classList.toggle('selected');
+        });
+        container.appendChild(chip);
+      });
+    }
+
+    // ── Form helpers ───────────────────────────────────────
+    function updateTypeFields() {
+      const type = document.getElementById('fCardType').value;
+      const rowAtk = document.getElementById('rowAttack');
+      const rowDef = document.getElementById('rowDefense');
+      const lblDef = document.getElementById('labelDefense');
+
+      if (type === 'spell') {
+        rowAtk.style.display = 'none';
+        rowDef.style.display = 'none';
+      } else {
+        rowAtk.style.display = '';
+        rowDef.style.display = '';
+        lblDef.textContent = type === 'weapon' ? 'Durability' : 'Defense / Health';
+      }
+    }
+
+    function clearForm() {
+      document.getElementById('fName').value = '';
+      document.getElementById('fCardType').value = 'minion';
+      document.getElementById('fManaCost').value = '1';
+      document.getElementById('fRarity').value = 'common';
+      document.getElementById('fAttack').value = '1';
+      document.getElementById('fDefense').value = '1';
+      document.getElementById('fDesc').value = '';
+      document.getElementById('fPicUrl').value = '';
+      document.getElementById('fPicFile').value = '';
+      document.getElementById('artPreview').innerHTML = '<span>No image selected</span>';
+      selectedKw = new Set();
+      updateTypeFields();
+    }
+
+    function setArtPreview(src) {
+      const preview = document.getElementById('artPreview');
+      if (src) {
+        preview.innerHTML = `<img src="${escapeHtml(src)}" alt="Preview" />`;
+      } else {
+        preview.innerHTML = '<span>No image selected</span>';
+      }
+    }
+
+    // ── Modal open / close ─────────────────────────────────
+    function openModal(title) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalOverlay').classList.add('open');
+      renderKwChips();
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+      editingId = null;
+      clearForm();
+    }
+
+    function openNew() {
+      editingId = null;
+      clearForm();
+      document.getElementById('btnDeleteCard').style.display = 'none';
+      openModal('New Card');
+    }
+
+    function openEdit(id) {
+      const card = db.find(c => c.id === id);
+      if (!card) return;
+      editingId = id;
+
+      document.getElementById('fName').value      = card.name ?? '';
+      document.getElementById('fCardType').value  = card.cardType ?? 'minion';
+      document.getElementById('fManaCost').value  = card.manaCost ?? 0;
+      document.getElementById('fRarity').value    = card.rarity ?? 'common';
+      document.getElementById('fAttack').value    = card.attack ?? 0;
+      document.getElementById('fDefense').value   = card.defense ?? 1;
+      document.getElementById('fDesc').value      = card.description ?? '';
+
+      const isUrl = typeof card.picture === 'string' && card.picture.startsWith('http');
+      document.getElementById('fPicUrl').value = isUrl ? card.picture : '';
+      setArtPreview(card.picture ?? null);
+
+      selectedKw = new Set(card.keywords ?? []);
+      updateTypeFields();
+      document.getElementById('btnDeleteCard').style.display = '';
+      openModal('Edit Card');
+    }
+
+    // ── Save card ──────────────────────────────────────────
+    function buildCard(picOverride) {
+      const cardType = document.getElementById('fCardType').value;
+      const card = {
+        id:          editingId ?? genId(),
+        name:        document.getElementById('fName').value.trim() || 'Unnamed Card',
+        cardType,
+        rarity:      document.getElementById('fRarity').value,
+        manaCost:    Math.max(0, parseInt(document.getElementById('fManaCost').value) || 0),
+        description: document.getElementById('fDesc').value.trim(),
+        keywords:    [...selectedKw],
+        picture:     picOverride !== undefined ? picOverride : null,
+        createdAt:   editingId
+          ? (db.find(c => c.id === editingId)?.createdAt ?? Date.now())
+          : Date.now(),
+      };
+
+      if (cardType !== 'spell') {
+        card.attack  = Math.max(0, parseInt(document.getElementById('fAttack').value)  || 0);
+        card.defense = Math.max(0, parseInt(document.getElementById('fDefense').value) || 0);
+      }
+
+      // If no new pic provided, keep existing
+      if (picOverride === undefined) {
+        const urlField = document.getElementById('fPicUrl').value.trim();
+        if (editingId) {
+          card.picture = urlField || db.find(c => c.id === editingId)?.picture || null;
+        } else {
+          card.picture = urlField || null;
+        }
+      }
+
+      return card;
+    }
+
+    function saveCard(picOverride) {
+      const card = buildCard(picOverride);
+
+      if (editingId) {
+        const idx = db.findIndex(c => c.id === editingId);
+        if (idx !== -1) db[idx] = card;
+      } else {
+        db.push(card);
+      }
+
+      saveDB();
+      renderGrid();
+      closeModal();
+    }
+
+    // ── Export / Import ────────────────────────────────────
+    function exportDB() {
+      const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'cardlogy-cards.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importDB(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data)) { alert('Invalid format: expected a JSON array.'); return; }
+          const existing = new Set(db.map(c => c.id));
+          const newCards = data.filter(c => c && typeof c === 'object' && c.id && !existing.has(c.id));
+          db.push(...newCards);
+          saveDB();
+          renderGrid();
+          alert(`Imported ${newCards.length} card${newCards.length !== 1 ? 's' : ''}.`);
+        } catch { alert('Could not parse the JSON file.'); }
+      };
+      reader.readAsText(file);
+    }
+
+    // ── Event wiring ───────────────────────────────────────
+    document.getElementById('btnNew').addEventListener('click', openNew);
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('btnCancel').addEventListener('click', closeModal);
+
+    document.getElementById('fCardType').addEventListener('change', updateTypeFields);
+
+    // Live art preview from URL
+    document.getElementById('fPicUrl').addEventListener('input', e => {
+      setArtPreview(e.target.value.trim() || null);
+    });
+
+    // Live art preview from file upload
+    document.getElementById('fPicFile').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => setArtPreview(ev.target.result);
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('btnSave').addEventListener('click', () => {
+      const fileInput = document.getElementById('fPicFile');
+      if (fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => saveCard(e.target.result);
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        saveCard(undefined);
+      }
+    });
+
+    document.getElementById('btnDeleteCard').addEventListener('click', () => {
+      if (editingId && confirm('Delete this card? This cannot be undone.')) {
+        db = db.filter(c => c.id !== editingId);
+        saveDB();
+        renderGrid();
+        closeModal();
+      }
+    });
+
+    document.getElementById('btnExport').addEventListener('click', exportDB);
+    document.getElementById('btnImport').addEventListener('click',
+      () => document.getElementById('importFile').click()
+    );
+    document.getElementById('importFile').addEventListener('change', e => {
+      importDB(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    ['searchInput', 'filterType', 'filterMana', 'filterRarity'].forEach(id =>
+      document.getElementById(id).addEventListener('input', renderGrid)
+    );
+
+    // Close modal on backdrop click
+    document.getElementById('modalOverlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('modalOverlay')) closeModal();
+    });
+
+    // ── Boot ───────────────────────────────────────────────
+    renderGrid();
+  </script>
+</body>
+</html>
