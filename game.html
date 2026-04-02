@@ -226,7 +226,7 @@
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      gap: 8px;
+      gap: 18px;
       height: 144px;
       position: relative;
     }
@@ -370,7 +370,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 22px;
+      gap: 32px;
       padding: 8px 20px;
       position: relative;
       min-height: 0;
@@ -641,6 +641,10 @@
       justify-content: center;
       z-index: 100;
       pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    #turn-banner.hiding {
+      opacity: 0;
     }
     #turn-banner .banner-text {
       background: rgba(0,0,0,0.82);
@@ -1284,8 +1288,13 @@
   // ─── Turn Banner ─────────────────────────────────────────────
   function showBanner(text) {
     $bannerText.textContent = text;
+    $turnBanner.classList.remove('hiding');
     $turnBanner.hidden = false;
-    setTimeout(function () { $turnBanner.hidden = true; }, 1800);
+    // Start fade-out after 2s, then hide after the 0.5s transition
+    setTimeout(function () {
+      $turnBanner.classList.add('hiding');
+      setTimeout(function () { $turnBanner.hidden = true; $turnBanner.classList.remove('hiding'); }, 500);
+    }, 2000);
   }
 
   // ─── Draw a card ─────────────────────────────────────────────
