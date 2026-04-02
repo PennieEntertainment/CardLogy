@@ -220,6 +220,7 @@
       padding: 8px 0;
       position: relative;
       z-index: 4;
+      overflow-x: auto;
     }
 
     .hand {
@@ -439,6 +440,19 @@
       animation: pulse-gold 1.2s ease-in-out infinite;
     }
     .minion.sleeping .minion-art { filter: brightness(0.5); }
+    /* Currently selected attacker — brighter gold ring */
+    .minion.attacking .minion-art {
+      border-color: #fde047;
+      box-shadow: 0 0 0 3px rgba(253,224,71,0.65), 0 0 22px rgba(253,224,71,0.9);
+      animation: pulse-gold 0.6s ease-in-out infinite;
+    }
+    /* Opponent minion that can be targeted */
+    .minion.targetable { cursor: crosshair; }
+    .minion.targetable .minion-art {
+      border-color: #f85149;
+      box-shadow: 0 0 0 3px rgba(248,81,73,0.5), 0 0 18px rgba(248,81,73,0.8);
+      animation: pulse-red 0.8s ease-in-out infinite;
+    }
     .minion .m-atk {
       position: absolute;
       bottom: -9px; left: -9px;
@@ -479,7 +493,7 @@
     }
     .m-badge {
       background: #1a472a; border: 1px solid var(--gold); border-radius: 3px;
-      font-size: 0.35rem; font-weight: 700; padding: 0 3px; color: var(--gold2);
+      font-size: 0.45rem; font-weight: 700; padding: 1px 4px; color: var(--gold2);
       white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
     }
 
@@ -511,12 +525,12 @@
       position: absolute;
       left: 0; right: 0;
       top: 50%;
-      height: 3px;
+      height: 2px;
       background: linear-gradient(90deg,
         transparent 0%,
-        rgba(0,0,0,0.4) 15%,
-        rgba(0,0,0,0.6) 50%,
-        rgba(0,0,0,0.4) 85%,
+        rgba(201,168,76,0.12) 10%,
+        rgba(201,168,76,0.28) 50%,
+        rgba(201,168,76,0.12) 90%,
         transparent 100%
       );
       transform: translateY(-50%);
@@ -684,15 +698,16 @@
     /* Floating damage numbers */
     .dmg-popup {
       position: fixed;
-      font-size: 1.5rem;
+      font-size: 1.65rem;
       font-weight: 900;
       color: #f85149;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+      text-shadow: 0 2px 10px rgba(0,0,0,1), 0 0 20px rgba(248,81,73,0.6);
       pointer-events: none;
-      z-index: 200;
+      z-index: 300;
       animation: float-up 0.9s ease forwards;
+      transform: translateX(-50%);
     }
-    .dmg-popup.heal { color: #4ade80; }
+    .dmg-popup.heal { color: #4ade80; text-shadow: 0 2px 10px rgba(0,0,0,1), 0 0 20px rgba(74,222,128,0.6); }
     @keyframes float-up {
       0%   { transform: translateY(0);    opacity: 1; }
       100% { transform: translateY(-48px); opacity: 0; }
@@ -1186,6 +1201,17 @@
   var $ropeFill      = document.getElementById('rope-fill');
   var $tooltip       = document.getElementById('card-tooltip');
 
+  // ─── Damage popup ──────────────────────────────────────────────
+  function showDmgPopup(x, y, value) {
+    var el = document.createElement('div');
+    el.className = 'dmg-popup' + (value > 0 ? ' heal' : '');
+    el.textContent = (value > 0 ? '+' : '') + value;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    document.body.appendChild(el);
+    el.addEventListener('animationend', function () { el.remove(); });
+  }
+
   // ─── Render helpers ────────────────────────────────────────────
   function renderHp(el, hp) {
     el.textContent = hp;
@@ -1251,7 +1277,12 @@
 
     minions.forEach(function (minion, idx) {
       var el = document.createElement('div');
-      el.className = 'minion' + (minion.sleeping ? ' sleeping' : '') + ((!isOpp && !minion.sleeping && isMyTurn()) ? ' can-attack' : '');
+      var cls = 'minion';
+      if (minion.sleeping) cls += ' sleeping';
+      if (!isOpp && !minion.sleeping && isMyTurn()) cls += ' can-attack';
+      if (!isOpp && attackingMinionIdx === idx) cls += ' attacking';
+      if (isOpp && attackingMinionIdx !== null && isMyTurn() && !gs.gameOver) cls += ' targetable';
+      el.className = cls;
       el.dataset.idx = idx;
       var mArtHtml = minion.picture
         ? '<img src="' + esc(minion.picture) + '" alt="" style="width:100%;height:100%;object-fit:cover;object-position:' + (minion.picX || 50) + '% ' + (minion.picY || 50) + '%">'
@@ -1297,6 +1328,8 @@
     renderOppHand();
     renderField($myField,  null,     gs.me.field,  false);
     renderField($oppField, null,     gs.opp.field, true);
+    // Highlight opp hero as attackable when we have selected an attacker
+    document.getElementById('opp-hero').classList.toggle('attackable', attackingMinionIdx !== null && isMyTurn() && !gs.gameOver);
     $myDeckCount.textContent  = gs.me.deckCount;
     $oppDeckCount.textContent = gs.opp.deckCount;
 
@@ -1504,6 +1537,10 @@
     var attacker = gs.me.field[attackingMinionIdx];
     if (!attacker) { attackingMinionIdx = null; return; }
 
+    // Capture screen positions before DOM re-render
+    var atkEl   = $myField.querySelector('.minion[data-idx="' + attackingMinionIdx + '"]');
+    var atkRect = atkEl ? atkEl.getBoundingClientRect() : null;
+
     var dmgToOpp, dmgToAtk;
 
     if (targetType === 'minion') {
@@ -1511,6 +1548,9 @@
       if (!defender) { attackingMinionIdx = null; return; }
       dmgToOpp = attacker.atk;
       dmgToAtk = defender.atk;
+
+      var defEl   = $oppField.querySelector('.minion[data-idx="' + targetIdx + '"]');
+      var defRect = defEl ? defEl.getBoundingClientRect() : null;
 
       defender.hp -= attacker.atk;
       attacker.hp -= defender.atk;
@@ -1530,10 +1570,16 @@
         defAtk: defender.atk,
         defHpAfter: defender.hp
       });
+
+      if (defRect) showDmgPopup(defRect.left + defRect.width / 2, defRect.top + defRect.height / 2, -dmgToOpp);
+      if (atkRect && dmgToAtk > 0) showDmgPopup(atkRect.left + atkRect.width / 2, atkRect.top + atkRect.height / 2, -dmgToAtk);
     } else if (targetType === 'hero') {
+      var hEl   = document.getElementById('opp-hero');
+      var hRect = hEl ? hEl.getBoundingClientRect() : null;
       gs.opp.hp -= attacker.atk;
       attacker.sleeping = true;
       sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: attacker.atk });
+      if (hRect) showDmgPopup(hRect.left + hRect.width / 2, hRect.top + hRect.height / 2, -attacker.atk);
     }
 
     attackingMinionIdx = null;
@@ -1546,17 +1592,35 @@
     if (attackingMinionIdx !== null) onAttackTarget('hero', null);
   });
 
+  // Cancel pending attack with Escape key or by clicking the board background
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && attackingMinionIdx !== null) {
+      attackingMinionIdx = null;
+      renderAll();
+    }
+  });
+
   function receiveAttack(data) {
     if (data.targetType === 'minion') {
       var theirMinion = gs.opp.field[data.attackerIdx];
       var ourMinion   = gs.me.field[data.targetIdx];
+      // Capture positions before DOM changes
+      var theirEl   = theirMinion ? $oppField.querySelector('.minion[data-idx="' + data.attackerIdx + '"]') : null;
+      var ourEl     = ourMinion   ? $myField.querySelector('.minion[data-idx="' + data.targetIdx + '"]')   : null;
+      var theirRect = theirEl ? theirEl.getBoundingClientRect() : null;
+      var ourRect   = ourEl   ? ourEl.getBoundingClientRect()   : null;
       // Use the authoritative HP values sent by the attacker's client
       if (theirMinion) { theirMinion.sleeping = true; theirMinion.hp = data.atkHp != null ? data.atkHp : theirMinion.hp - (data.defAtk || 0); }
       if (ourMinion)   { ourMinion.hp = data.defHpAfter != null ? data.defHpAfter : ourMinion.hp - (data.atkAtk || 0); }
       gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
       gs.me.field  = gs.me.field.filter(function (m) { return m.hp > 0; });
+      if (ourRect   && data.atkAtk) showDmgPopup(ourRect.left   + ourRect.width   / 2, ourRect.top   + ourRect.height   / 2, -data.atkAtk);
+      if (theirRect && data.defAtk) showDmgPopup(theirRect.left + theirRect.width / 2, theirRect.top + theirRect.height / 2, -data.defAtk);
     } else if (data.targetType === 'hero') {
+      var heroEl   = document.getElementById('my-hero');
+      var heroRect = heroEl ? heroEl.getBoundingClientRect() : null;
       gs.me.hp -= (data.atkAtk || 0);
+      if (heroRect && data.atkAtk) showDmgPopup(heroRect.left + heroRect.width / 2, heroRect.top + heroRect.height / 2, -data.atkAtk);
     }
     checkGameOver();
     renderAll();

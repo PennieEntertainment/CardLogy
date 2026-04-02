@@ -126,6 +126,22 @@
       font-size: 0.85rem;
     }
 
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.82rem;
+    }
+
     /* ── Lobby view ── */
     .lobby-header {
       display: flex;
@@ -883,6 +899,9 @@
     <div class="deck-badge-row" id="setup-deck-badge">
       <span class="deck-dot"></span>
       <span id="setup-deck-text">No deck — build one before playing</span>
+    </div>
+    <div style="margin-top:0.75rem;text-align:center">
+      <a href="cards.html" style="font-size:0.78rem;color:var(--muted);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">Open Card Database ↗️</a>
     </div>
 
     <div id="join-section" hidden>
@@ -2052,6 +2071,13 @@
   buildDeckBtn.addEventListener('click', openDeckView);
 
   deckBackBtn.addEventListener('click', closeDeckView);
+
+  // Close deck overlay with Escape key
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && deckView.classList.contains('active')) {
+      closeDeckView();
+    }
+  });
 
   deckSaveBtn.addEventListener('click', function () {
     saveDeck(myDeck);

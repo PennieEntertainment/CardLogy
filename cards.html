@@ -613,9 +613,17 @@
           <label class="field-label" for="fRace">Race / Tribe <span class="note">(Minion only)</span></label>
           <select id="fRace">
             <option value="none">None</option>
-            <option value="VideoGame">Video Game</option>
-            <option value="Rodiller">Rodiller</option>
-            <option value="Nita">Nita</option>
+            <option value="murloc">Murloc</option>
+            <option value="undead">Undead</option>
+            <option value="beast">Beast</option>
+            <option value="dragon">Dragon</option>
+            <option value="mech">Mech</option>
+            <option value="elemental">Elemental</option>
+            <option value="pirate">Pirate</option>
+            <option value="demon">Demon</option>
+            <option value="naga">Naga</option>
+            <option value="quilboar">Quilboar</option>
+            <option value="totem">Totem</option>
           </select>
         </div>
 
@@ -1174,9 +1182,15 @@
       document.getElementById(id).addEventListener('input', renderGrid)
     );
 
-    // Close modal on backdrop click
+    // Close modal on backdrop click or Escape key
     document.getElementById('modalOverlay').addEventListener('click', e => {
       if (e.target === document.getElementById('modalOverlay')) closeModal();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && document.getElementById('modalOverlay').classList.contains('open')) {
+        closeModal();
+      }
     });
 
     // Boot
