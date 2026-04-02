@@ -576,7 +576,7 @@
   <!-- ── Add / Edit Modal ───────────────────── -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
-      <button class="close-btn" id="modalClose">✕</button>
+      <button type="button" class="close-btn" id="modalClose">✕</button>
       <h2 id="modalTitle">New Card</h2>
 
       <div class="form-grid">
@@ -661,9 +661,9 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-danger btn-sm" id="btnDeleteCard" style="display:none; margin-right:auto;">Delete Card</button>
-        <button class="btn-ghost" id="btnCancel">Cancel</button>
-        <button class="btn-primary" id="btnSave">Save Card</button>
+        <button type="button" class="btn-danger btn-sm" id="btnDeleteCard" style="display:none; margin-right:auto;">Delete Card</button>
+        <button type="button" class="btn-ghost" id="btnCancel">Cancel</button>
+        <button type="button" class="btn-primary" id="btnSave">Save Card</button>
       </div>
     </div>
   </div>
@@ -702,7 +702,15 @@
     }
 
     function saveDB() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+      } catch (e) {
+        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+          alert('Storage full! Your browser\'s local storage is full. Try removing cards with large images first.');
+        } else {
+          throw e;
+        }
+      }
     }
 
     function genId() {
@@ -1003,18 +1011,23 @@
     }
 
     function saveCard(picOverride) {
-      const card = buildCard(picOverride);
+      try {
+        const card = buildCard(picOverride);
 
-      if (editingId) {
-        const idx = db.findIndex(c => c.id === editingId);
-        if (idx !== -1) db[idx] = card;
-      } else {
-        db.push(card);
+        if (editingId) {
+          const idx = db.findIndex(c => c.id === editingId);
+          if (idx !== -1) db[idx] = card;
+        } else {
+          db.push(card);
+        }
+
+        saveDB();
+        renderGrid();
+        closeModal();
+      } catch (err) {
+        console.error('Save failed:', err);
+        alert('Could not save card: ' + err.message);
       }
-
-      saveDB();
-      renderGrid();
-      closeModal();
     }
 
     // ── Export / Import ────────────────────────────────────
