@@ -303,7 +303,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.1.8</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.2.0</div>
 
 <div class="card">
   <div class="logo">
@@ -502,18 +502,24 @@
       };
     }
 
-    // Production: use public STUN + Open Relay Project free TURN servers
+    // Production: use public STUN + multiple free TURN relays for NAT traversal
     return {
-      debug: 0,
+      debug: 2,
       config: {
+        iceTransportPolicy: 'all',
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
           { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'turn:openrelay.metered.ca:80',               username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:80?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443',              username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+          // Open Relay Project free TURN
+          { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:80?transport=tcp',   username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
+          // freestun.net free TURN
+          { urls: 'stun:freestun.net:3479' },
+          { urls: 'turn:freestun.net:3479',  username: 'free', credential: 'free' },
+          { urls: 'turns:freestun.net:5350', username: 'free', credential: 'free' }
         ]
       }
     };
@@ -634,16 +640,37 @@
     peer = new Peer(undefined, peerCfg);
 
     var joinTimeout = setTimeout(function () {
-      roomError.textContent = 'Connection timed out. Check the room code and try again.';
+      roomError.textContent = 'Could not reach the host — NAT/firewall is blocking the connection. Ask the host to recreate the lobby and try again.';
       roomError.hidden = false;
       joinBtn.disabled = false;
       joinBtn.textContent = 'Join';
       destroyPeer();
-    }, 30000);
+    }, 20000);
 
     peer.on('open', function () {
-      const c = peer.connect(code);
+      const c = peer.connect(code, { reliable: true });
       conn = c;
+
+      // Monitor ICE state to detect failure early (before the 20s timeout)
+      function attachIceMonitor() {
+        var pc = c.peerConnection;
+        if (!pc) return;
+        pc.addEventListener('iceconnectionstatechange', function () {
+          if (pc.iceConnectionState === 'failed') {
+            clearTimeout(joinTimeout);
+            roomError.textContent = 'Direct connection failed (NAT/firewall). Both players need a working TURN relay. Try again or switch networks.';
+            roomError.hidden = false;
+            joinBtn.disabled = false;
+            joinBtn.textContent = 'Join';
+            destroyPeer();
+          }
+        });
+      }
+      if (c.peerConnection) {
+        attachIceMonitor();
+      } else {
+        setTimeout(attachIceMonitor, 50);
+      }
 
       c.on('open', function () {
         clearTimeout(joinTimeout);
