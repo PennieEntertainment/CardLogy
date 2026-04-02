@@ -516,7 +516,33 @@
 (function () {
   'use strict';
 
-  var RELAY_URL = 'http://localhost:8080';
+  // ── Local user DB (stored in localStorage) ───────────────
+  var DB_KEY = 'cl_users_v1';
+
+  function loadUsers() {
+    try { return JSON.parse(localStorage.getItem(DB_KEY) || '[]'); } catch { return []; }
+  }
+
+  function saveUsers(users) {
+    localStorage.setItem(DB_KEY, JSON.stringify(users));
+  }
+
+  // ── Crypto helpers (Web Crypto API — no server needed) ───
+  function hexFromBuffer(buf) {
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function randomHex(bytes) {
+    var arr = new Uint8Array(bytes);
+    crypto.getRandomValues(arr);
+    return hexFromBuffer(arr.buffer);
+  }
+
+  function hashPassword(salt, password) {
+    var enc = new TextEncoder();
+    var data = enc.encode(salt + ':' + password);
+    return crypto.subtle.digest('SHA-256', data).then(hexFromBuffer);
+  }
 
   // ── DOM refs ──────────────────────────────────────────────
   var authView      = document.getElementById('auth-view');
@@ -548,18 +574,14 @@
   }
 
   function setSession(username) {
-    sessionStorage.setItem('cl_user', JSON.stringify({ username }));
+    sessionStorage.setItem('cl_user', JSON.stringify({ username: username }));
   }
 
   function clearSession() {
     sessionStorage.removeItem('cl_user');
   }
 
-  function showError(el, msg) {
-    el.textContent = msg;
-    el.hidden = false;
-  }
-
+  function showError(el, msg) { el.textContent = msg; el.hidden = false; }
   function clearError(el) { el.hidden = true; el.textContent = ''; }
 
   // ── After login: switch to setup view ────────────────────
@@ -601,29 +623,24 @@
     loginBtn.disabled = true;
     loginBtn.textContent = 'Logging in…';
 
-    fetch(RELAY_URL + '/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: u, password: p }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-        if (data.ok) {
-          enterSetup(data.username);
-        } else {
-          var msg = data.error === 'bad-credentials'
-            ? 'Incorrect username or password.'
-            : 'Login failed. Make sure the relay server is running.';
-          showError(loginError, msg);
-        }
-      })
-      .catch(function () {
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-        showError(loginError, 'Cannot reach relay server. Run relay.mjs first.');
-      });
+    var users = loadUsers();
+    var user = users.find(function (x) { return x.username.toLowerCase() === u.toLowerCase(); });
+    if (!user) {
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Login';
+      showError(loginError, 'Incorrect username or password.');
+      return;
+    }
+
+    hashPassword(user.salt, p).then(function (hash) {
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Login';
+      if (hash === user.hash) {
+        enterSetup(user.username);
+      } else {
+        showError(loginError, 'Incorrect username or password.');
+      }
+    });
   });
 
   // ── Register ──────────────────────────────────────────────
@@ -633,38 +650,28 @@
     var p = regPassword.value;
     var c = regConfirm.value;
     if (!u || !p) { showError(registerError, 'Fill in all fields.'); return; }
-    if (p !== c) { showError(registerError, 'Passwords do not match.'); return; }
+    if (!/^[a-zA-Z0-9_-]{2,20}$/.test(u)) {
+      showError(registerError, 'Username must be 2–20 chars, letters/numbers/_/-.'); return;
+    }
     if (p.length < 4) { showError(registerError, 'Password must be at least 4 characters.'); return; }
+    if (p !== c) { showError(registerError, 'Passwords do not match.'); return; }
+
+    var users = loadUsers();
+    if (users.find(function (x) { return x.username.toLowerCase() === u.toLowerCase(); })) {
+      showError(registerError, 'That username is already taken.'); return;
+    }
 
     registerBtn.disabled = true;
     registerBtn.textContent = 'Registering…';
 
-    fetch(RELAY_URL + '/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: u, password: p }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        registerBtn.disabled = false;
-        registerBtn.textContent = 'Register';
-        if (data.ok) {
-          enterSetup(data.username);
-        } else {
-          var msgs = {
-            'username-taken': 'That username is already taken.',
-            'invalid-username': 'Username must be 2–20 chars, letters/numbers/_/-.',
-            'password-too-short': 'Password must be at least 4 characters.',
-            'missing-fields': 'Fill in all fields.',
-          };
-          showError(registerError, msgs[data.error] || 'Registration failed. Make sure the relay server is running.');
-        }
-      })
-      .catch(function () {
-        registerBtn.disabled = false;
-        registerBtn.textContent = 'Register';
-        showError(registerError, 'Cannot reach relay server. Run relay.mjs first.');
-      });
+    var salt = randomHex(16);
+    hashPassword(salt, p).then(function (hash) {
+      registerBtn.disabled = false;
+      registerBtn.textContent = 'Register';
+      users.push({ username: u, hash: hash, salt: salt });
+      saveUsers(users);
+      enterSetup(u);
+    });
   });
 
   // ── Logout ────────────────────────────────────────────────
