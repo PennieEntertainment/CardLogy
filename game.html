@@ -965,6 +965,62 @@
   // Host always goes first
   var amFirst = (myRole === 'host');
 
+  // ─── Build deck from localStorage when not supplied by lobby ──
+  function buildDeckFromStorage() {
+    var RACE_EMOJI_MAP = {
+      murloc: '🐟', undead: '💀', beast: '🐾', dragon: '🐉',
+      mech: '⚙️', elemental: '🔥', pirate: '☠️', demon: '👹',
+      naga: '🐍', quilboar: '🐗', totem: '🪵',
+    };
+    var u;
+    try {
+      var s = JSON.parse(sessionStorage.getItem('cl_user') || 'null');
+      u = (s && s.username) ? s.username.toLowerCase() : null;
+    } catch { u = null; }
+    var key = u ? 'cl_deck_v1_' + u : 'cl_deck_v1_anon';
+    var deckMap;
+    try { deckMap = JSON.parse(localStorage.getItem(key) || '{}'); } catch { deckMap = {}; }
+    if (!deckMap || typeof deckMap !== 'object' || Array.isArray(deckMap) || !Object.keys(deckMap).length) {
+      return Promise.resolve([]);
+    }
+    return fetch('./cards.json?t=' + Date.now())
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .catch(function () { return []; })
+      .then(function (cards) {
+        var deck = [];
+        Object.keys(deckMap).forEach(function (id) {
+          var count = deckMap[id] || 0;
+          var card = cards.find(function (c) { return c.id === id; });
+          if (!card) return;
+          var raceKey = (card.race || '').toLowerCase();
+          var emoji = RACE_EMOJI_MAP[raceKey] || (card.cardType === 'spell' ? '✨' : '⚔️');
+          for (var i = 0; i < count; i++) {
+            deck.push({
+              id:       card.id,
+              name:     card.name,
+              cost:     card.manaCost  != null ? card.manaCost  : 0,
+              atk:      card.attack    != null ? card.attack    : 0,
+              hp:       card.defense   != null ? card.defense   : 1,
+              type:     card.cardType  || 'minion',
+              emoji:    emoji,
+              desc:     card.description || '',
+              race:     card.race || '',
+              picture:  card.picture  || null,
+              picX:     card.picX     != null ? card.picX     : 50,
+              picY:     card.picY     != null ? card.picY     : 50,
+              rarity:   card.rarity   || 'common',
+              keywords: card.keywords || [],
+            });
+          }
+        });
+        for (var i = deck.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+        }
+        return deck;
+      });
+  }
+
   // ─── Game State ───────────────────────────────────────────
   var gs = {
     turn: 1,
@@ -973,7 +1029,7 @@
       hp: MAX_HP,
       maxMana: 0,
       mana: 0,
-      deck: myDeck.length > 0 ? [...myDeck] : makeDummyDeck(),
+      deck: myDeck.length > 0 ? [...myDeck] : [],
       hand: [],
       field: [],
       deckCount: myDeck.length > 0 ? myDeck.length : 30,
@@ -1646,7 +1702,22 @@
     setTimeout(function () { onMqttReady(); }, 4000);
   }
 
-  init();
+  // Use deck from lobby session if available; otherwise build from localStorage.
+  // Only fall back to the dummy deck if no built deck exists at all.
+  if (myDeck.length > 0) {
+    init();
+  } else {
+    buildDeckFromStorage().then(function (builtDeck) {
+      if (builtDeck.length > 0) {
+        gs.me.deck = builtDeck;
+        gs.me.deckCount = builtDeck.length;
+      } else {
+        gs.me.deck = makeDummyDeck();
+        gs.me.deckCount = gs.me.deck.length;
+      }
+      init();
+    });
+  }
 
 })();
 </script>
