@@ -450,80 +450,7 @@
       overflow: hidden;
     }
 
-    .deck-card-list-wrap {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0.75rem 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .card-row {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding: 0.42rem 0.75rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      transition: border-color 0.15s;
-    }
-    .card-row.clickable { cursor: pointer; }
-    .card-row.clickable:hover { border-color: var(--accent); }
-    .card-row.maxed { opacity: 0.4; }
-
-    .card-row-mana {
-      width: 26px; height: 26px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
-      border: 2px solid #aedaf7;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.78rem; font-weight: 900; color: #fff;
-      flex-shrink: 0;
-    }
-    .card-row-name {
-      flex: 1;
-      font-size: 0.88rem;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .card-row-meta {
-      font-size: 0.7rem;
-      color: var(--muted);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .card-row-rarity {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .rarity-common    { background: #6b7280; }
-    .rarity-rare      { background: #3b82f6; }
-    .rarity-epic      { background: #a855f7; }
-    .rarity-legendary { background: #f59e0b; }
-
-    .card-row-add {
-      width: 26px; height: 26px;
-      border-radius: 50%;
-      background: var(--accent);
-      color: #0d1117;
-      border: none;
-      font-size: 1.05rem;
-      font-weight: 900;
-      line-height: 1;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      transition: opacity 0.2s;
-    }
-    .card-row-add:hover { opacity: 0.75; }
-    .card-row-add:disabled { opacity: 0.25; cursor: not-allowed; }
-
-    /* Deck Panel */
+    /* Card Panel */
     .deck-panel {
       width: 260px;
       border-left: 1px solid var(--border);
@@ -641,6 +568,218 @@
       text-align: center;
     }
     .deck-footer-status.ready { color: var(--green); font-weight: 600; }
+
+    /* ── HS Card Frame (deck builder) ── */
+    .hs-card {
+      position: relative;
+      width: 155px;
+      height: 222px;
+      border-radius: 14px;
+      overflow: visible;
+      flex-shrink: 0;
+    }
+    .hs-card .frame {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+    }
+    .hs-card.type-minion .frame { background: linear-gradient(170deg, #1a2840 0%, #0d1825 100%); }
+    .hs-card.type-spell   .frame { background: linear-gradient(170deg, #2a1a44 0%, #160d30 100%); }
+    .hs-card.rarity-common    .frame { border: 2px solid #6b7280; }
+    .hs-card.rarity-rare      .frame { border: 2px solid #3b82f6; box-shadow: 0 0 12px rgba(59,130,246,0.25); }
+    .hs-card.rarity-epic      .frame { border: 2px solid #a855f7; box-shadow: 0 0 12px rgba(168,85,247,0.3); }
+    .hs-card.rarity-legendary .frame { border: 2px solid #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.45); }
+    .hs-card .art {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 124px;
+      background: #111827;
+      overflow: hidden;
+    }
+    .hs-card .art img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .hs-card .art-placeholder {
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      opacity: 0.25;
+    }
+    .hs-card .name-banner {
+      position: absolute;
+      left: 10px; right: 10px;
+      top: 116px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(201,168,76,0.9) 18%,
+        rgba(232,201,122,0.97) 50%,
+        rgba(201,168,76,0.9) 82%,
+        transparent 100%
+      );
+      text-align: center;
+      padding: 3px 0;
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #0d1117;
+      border-radius: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 2;
+      letter-spacing: 0.03em;
+    }
+    .hs-card .type-strip {
+      position: absolute;
+      left: 0; right: 0;
+      top: 136px;
+      text-align: center;
+      font-size: 0.49rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      z-index: 2;
+    }
+    .hs-card .desc-box {
+      position: absolute;
+      left: 8px; right: 8px;
+      top: 146px; bottom: 8px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.05);
+      padding: 4px 5px;
+      font-size: 0.5rem;
+      line-height: 1.45;
+      color: #c9d1d9;
+      overflow: hidden;
+      z-index: 2;
+      font-style: italic;
+    }
+    .hs-card .desc-box .kw {
+      color: #ffd700;
+      font-weight: 800;
+      font-style: normal;
+    }
+    .hs-card .gem-mana {
+      position: absolute;
+      top: -8px; left: -8px;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
+      border: 2px solid #aedaf7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    }
+    .hs-card .gem-attack {
+      position: absolute;
+      bottom: -8px; left: -8px;
+      width: 34px; height: 34px;
+      background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
+      border: 2px solid #ffe49e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      border-radius: 8px;
+      transform: rotate(45deg);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    }
+    .hs-card .gem-attack span { transform: rotate(-45deg); display: block; }
+    .hs-card .gem-defense {
+      position: absolute;
+      bottom: -8px; right: -8px;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
+      border: 2px solid #ffb3b3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 5;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+    }
+
+    /* ── Deck builder card grid ── */
+    .deck-card-list-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 1.25rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 2.2rem 1.25rem;
+      align-content: start;
+      justify-items: center;
+    }
+
+    /* Card wrapper with overlay */
+    .deck-card-wrap {
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .deck-card-wrap:not(.maxed):hover { transform: translateY(-6px) scale(1.04); z-index: 10; }
+    .deck-card-wrap.maxed { cursor: default; }
+    .deck-card-wrap.maxed .hs-card .frame { opacity: 0.4; filter: grayscale(0.5); }
+
+    .deck-add-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 15;
+      pointer-events: none;
+      background: rgba(201,168,76,0.18);
+    }
+    .deck-card-wrap:not(.maxed):hover .deck-add-overlay { opacity: 1; }
+    .deck-add-icon {
+      font-size: 2.2rem;
+      color: var(--accent);
+      font-weight: 900;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+      line-height: 1;
+    }
+
+    .deck-in-count {
+      position: absolute;
+      top: -10px; right: -10px;
+      min-width: 26px; height: 26px;
+      padding: 0 5px;
+      border-radius: 13px;
+      background: var(--accent);
+      color: #0d1117;
+      font-size: 0.72rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    }
 
     /* Setup deck badge */
     .deck-badge-row {
@@ -1529,6 +1668,98 @@
       .catch(function () { return []; });
   }
 
+  var KEYWORDS = [
+    'Taunt', 'Charge', 'Rush', 'Divine Shield', 'Stealth', 'Poisonous',
+    'Lifesteal', 'Freeze', 'Windfury', 'Mega-Windfury', 'Immune', 'Reborn',
+    'Battlecry', 'Deathrattle', 'Discover', 'Overkill', 'Echo', 'Silence',
+    'Combo', 'Overload', 'Spell Damage +1', 'Spell Damage +2',
+  ];
+  var RACE_EMOJI = {
+    murloc: '🐟', undead: '💀', beast: '🐾', dragon: '🐉',
+    mech: '⚙️', elemental: '🔥', pirate: '☠️', demon: '👹',
+    naga: '🐍', quilboar: '🐗', totem: '🪵', none: '🧙',
+  };
+  var TYPE_EMOJI = { minion: '🗡️', spell: '✨' };
+
+  function highlightKeywords(text) {
+    if (!text) return '';
+    var escaped = esc(text);
+    var sorted = KEYWORDS.slice().sort(function (a, b) { return b.length - a.length; });
+    var pattern = sorted.map(function (k) {
+      return k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }).join('|');
+    return escaped.replace(new RegExp('(' + pattern + ')', 'gi'), '<span class="kw">$1</span>');
+  }
+
+  function buildCardEl(card) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'hs-card type-' + (card.cardType || 'minion') + ' rarity-' + (card.rarity || 'common');
+
+    var frame = document.createElement('div');
+    frame.className = 'frame';
+
+    var artPlaceholder = card.cardType === 'minion' && card.race && card.race !== 'none'
+      ? (RACE_EMOJI[card.race] || '🗡️')
+      : (TYPE_EMOJI[card.cardType] || '🃏');
+
+    var art = document.createElement('div');
+    art.className = 'art';
+    if (card.picture) {
+      var img = document.createElement('img');
+      img.src = card.picture;
+      img.alt = esc(card.name || '');
+      img.style.objectPosition = (card.picX || 50) + '% ' + (card.picY || 50) + '%';
+      img.onerror = function () {
+        img.remove();
+        art.innerHTML = '<div class="art-placeholder">' + artPlaceholder + '</div>';
+      };
+      art.appendChild(img);
+    } else {
+      art.innerHTML = '<div class="art-placeholder">' + artPlaceholder + '</div>';
+    }
+    frame.appendChild(art);
+
+    var banner = document.createElement('div');
+    banner.className = 'name-banner';
+    banner.textContent = card.name || 'Unnamed';
+    frame.appendChild(banner);
+
+    var typeStrip = document.createElement('div');
+    typeStrip.className = 'type-strip';
+    if (card.cardType === 'minion' && card.race && card.race !== 'none') {
+      typeStrip.textContent = card.race.toUpperCase();
+    } else {
+      typeStrip.textContent = (card.cardType || '').toUpperCase();
+    }
+    frame.appendChild(typeStrip);
+
+    var desc = document.createElement('div');
+    desc.className = 'desc-box';
+    desc.innerHTML = highlightKeywords(card.description || '');
+    frame.appendChild(desc);
+
+    wrapper.appendChild(frame);
+
+    var mana = document.createElement('div');
+    mana.className = 'gem-mana';
+    mana.textContent = card.manaCost != null ? card.manaCost : 0;
+    wrapper.appendChild(mana);
+
+    if (card.cardType === 'minion') {
+      var atk = document.createElement('div');
+      atk.className = 'gem-attack';
+      atk.innerHTML = '<span>' + (card.attack != null ? card.attack : 0) + '</span>';
+      wrapper.appendChild(atk);
+
+      var def = document.createElement('div');
+      def.className = 'gem-defense';
+      def.textContent = card.defense != null ? card.defense : 1;
+      wrapper.appendChild(def);
+    }
+
+    return wrapper;
+  }
+
   // ── Render the available card list ────────────────────────
   function renderCardList() {
     var query   = deckSearch.value.toLowerCase().trim();
@@ -1555,7 +1786,7 @@
     deckAvailCount.textContent = filtered.length + ' card' + (filtered.length !== 1 ? 's' : '');
 
     if (filtered.length === 0) {
-      deckCardList.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:2rem;text-align:center">No cards match your filters.</div>';
+      deckCardList.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:2rem;text-align:center;grid-column:1/-1">No cards match your filters.</div>';
       return;
     }
 
@@ -1563,32 +1794,34 @@
     var total = totalCards(myDeck);
 
     filtered.forEach(function (card) {
-      var inDeck  = myDeck[card.id] || 0;
-      var max     = maxCopies(card);
-      var atMax   = inDeck >= max || total >= MAX_DECK_SIZE;
+      var inDeck = myDeck[card.id] || 0;
+      var max    = maxCopies(card);
+      var atMax  = inDeck >= max || total >= MAX_DECK_SIZE;
 
-      var row = document.createElement('div');
-      row.className = 'card-row' + (atMax ? ' maxed' : ' clickable');
+      var wrap = document.createElement('div');
+      wrap.className = 'deck-card-wrap' + (atMax ? ' maxed' : '');
 
-      var rarityClass = 'rarity-' + (card.rarity || 'common');
+      wrap.appendChild(buildCardEl(card));
 
-      row.innerHTML =
-        '<div class="card-row-mana">' + esc(String(card.manaCost || 0)) + '</div>' +
-        '<div class="card-row-name">' + esc(card.name || 'Unnamed') + '</div>' +
-        '<div class="card-row-meta">' + esc(card.cardType || '') + '</div>' +
-        '<div class="card-row-rarity ' + rarityClass + '"></div>' +
-        '<button class="card-row-add" title="Add to deck"' + (atMax ? ' disabled' : '') + '>+</button>';
+      // Add/hover overlay
+      var overlay = document.createElement('div');
+      overlay.className = 'deck-add-overlay';
+      overlay.innerHTML = '<span class="deck-add-icon">+</span>';
+      wrap.appendChild(overlay);
 
-      var addBtn = row.querySelector('.card-row-add');
-      addBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        addToDeck(card);
-      });
-      if (!atMax) {
-        row.addEventListener('click', function () { addToDeck(card); });
+      // In-deck count badge
+      if (inDeck > 0) {
+        var badge = document.createElement('div');
+        badge.className = 'deck-in-count';
+        badge.textContent = inDeck + 'x';
+        wrap.appendChild(badge);
       }
 
-      deckCardList.appendChild(row);
+      if (!atMax) {
+        wrap.addEventListener('click', function () { addToDeck(card); });
+      }
+
+      deckCardList.appendChild(wrap);
     });
   }
 
