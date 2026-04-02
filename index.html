@@ -480,12 +480,30 @@
     if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
   }
 
-  // ── Build PeerJS config with time-limited TURN credentials ─
-  // staticauth.openrelay.metered.ca uses RFC 5389 HMAC-SHA1 auth
-  // with the publicly documented shared secret.
+  // ── Build PeerJS config ───────────────────────────────────
+  // On localhost: use the local PeerJS signaling server (proxied by Vite).
+  // In production: use the public PeerJS server with TURN relay credentials.
   async function getPeerCfg() {
+    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+    if (isLocal) {
+      return {
+        host: location.hostname,
+        port: Number(location.port) || 5173,
+        path: '/peerjs',
+        secure: false,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      };
+    }
+
+    // Production: time-limited TURN credentials via HMAC-SHA1
     const secret = 'openrelayprojectsecret';
-    const expiry = Math.floor(Date.now() / 1000) + 86400; // valid 24h
+    const expiry = Math.floor(Date.now() / 1000) + 86400; // valid 24 h
     const username = String(expiry);
     const enc = new TextEncoder();
     const key = await crypto.subtle.importKey(
