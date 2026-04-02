@@ -34,7 +34,8 @@
       width: 100vw;
       height: 100vh;
       background:
-        radial-gradient(ellipse 80% 50% at 50% 50%, #1e5535 0%, #122f1c 100%);
+        linear-gradient(180deg, rgba(8,20,42,0.2) 0%, transparent 28%, transparent 72%, rgba(52,28,4,0.2) 100%),
+        radial-gradient(ellipse 90% 65% at 50% 50%, #1e5535 0%, #0e2918 100%);
       display: flex;
       flex-direction: column;
       position: relative;
@@ -56,45 +57,47 @@
     /* ─── Info bars (top / bottom) ──────────────────────────── */
     .info-bar {
       flex-shrink: 0;
-      height: 88px;
+      height: 74px;
       display: flex;
       align-items: center;
       gap: 14px;
-      padding: 0 18px;
-      background: rgba(0,0,0,0.45);
-      border-bottom: 2px solid rgba(0,0,0,0.5);
+      padding: 0 20px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.38) 100%);
+      border-bottom: 1px solid rgba(201,168,76,0.22);
       z-index: 5;
       position: relative;
     }
     .info-bar.bottom {
       border-bottom: none;
-      border-top: 2px solid rgba(0,0,0,0.5);
-      flex-direction: row-reverse; /* mirror layout for bottom player */
+      border-top: 1px solid rgba(201,168,76,0.22);
+      flex-direction: row-reverse;
     }
 
     /* ─── Hero Portrait ─────────────────────────────────────── */
     .hero-portrait {
       position: relative;
-      width: 68px;
-      height: 68px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #3a3a4a, #1a1a2a);
-      border: 3px solid var(--gold);
+      border: 2px solid var(--gold);
       box-shadow:
-        0 0 0 2px rgba(0,0,0,0.8),
+        0 0 0 2px rgba(0,0,0,0.75),
+        inset 0 1px 0 rgba(255,255,255,0.1),
         0 4px 16px rgba(0,0,0,0.7);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 2rem;
+      font-size: 1.75rem;
       flex-shrink: 0;
       cursor: pointer;
-      transition: box-shadow 0.2s;
+      transition: box-shadow 0.2s, transform 0.15s;
     }
     .hero-portrait:hover {
+      transform: scale(1.07);
       box-shadow:
-        0 0 0 2px rgba(0,0,0,0.8),
-        0 0 18px rgba(201,168,76,0.6),
+        0 0 0 2px rgba(0,0,0,0.75),
+        0 0 24px rgba(201,168,76,0.8),
         0 4px 16px rgba(0,0,0,0.7);
     }
     .hero-portrait.attackable {
@@ -108,10 +111,10 @@
     /* HP Orb on hero portrait */
     .hp-orb {
       position: absolute;
-      bottom: -8px;
+      bottom: -10px;
       left: 50%;
       transform: translateX(-50%);
-      min-width: 34px; height: 34px;
+      min-width: 28px; height: 28px;
       padding: 0 4px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #ff6b6b, #c0392b 55%, #6a1010);
@@ -119,12 +122,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       font-weight: 900;
       color: #fff;
       text-shadow: 0 1px 4px rgba(0,0,0,0.8);
       z-index: 5;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.7);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.15);
     }
     .hp-orb.low {
       background: radial-gradient(circle at 35% 30%, #ff3030, #8b0000 55%, #3a0000);
@@ -134,13 +137,14 @@
     /* Player name */
     .player-name {
       font-weight: 700;
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: var(--gold2);
       letter-spacing: 0.03em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 120px;
+      max-width: 170px;
+      text-shadow: 0 1px 5px rgba(0,0,0,0.7);
     }
 
     /* Deck counter */
@@ -152,17 +156,17 @@
       color: var(--muted);
     }
     .deck-count .deck-pile {
-      width: 32px; height: 42px;
+      width: 32px; height: 40px;
       border-radius: 5px;
       background: linear-gradient(170deg, #1a2840, #0d1825);
-      border: 2px solid var(--gold);
+      border: 1.5px solid var(--gold);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.85rem;
+      font-size: 0.88rem;
       font-weight: 900;
       color: var(--gold2);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.6);
     }
     .deck-count .deck-lbl {
       font-size: 0.58rem;
@@ -220,14 +224,17 @@
       padding: 8px 0;
       position: relative;
       z-index: 4;
-      overflow-x: auto;
+      overflow: visible;
     }
+    /* Size overrides per player */
+    .hand-wrap:has(#opp-hand) { height: 102px; }
+    .hand-wrap:has(#my-hand)  { height: 180px; }
 
     .hand {
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      gap: 18px;
+      gap: 0;
       height: 144px;
       position: relative;
     }
@@ -242,8 +249,9 @@
       transition: transform 0.15s, box-shadow 0.15s;
       flex-shrink: 0;
     }
-    .card-in-hand:nth-child(n) { margin-left: 0; }
-    .card-in-hand:first-child  { margin-left: 0; }
+    /* Card overlap in hand */
+    .card-in-hand + .card-in-hand  { margin-left: -22px; }
+    .card-in-hand:first-child       { margin-left: 0; }
 
     /* Opponent hand — face-down backs */
     .card-back {
@@ -262,6 +270,15 @@
       color: rgba(201,168,76,0.35);
     }
 
+    /* Opponent hand — compact face-down backs */
+    #opp-hand .card-in-hand {
+      width: 50px;
+      height: 70px;
+      border-radius: 7px;
+    }
+    #opp-hand .card-in-hand + .card-in-hand { margin-left: -10px; }
+    #opp-hand .card-back::after { font-size: 1rem; }
+
     /* Player hand — visible cards */
     .card-playable {
       background: linear-gradient(170deg, #1a2840 0%, #0d1825 100%);
@@ -269,13 +286,13 @@
       box-shadow: 0 3px 10px rgba(0,0,0,0.6);
     }
     .card-playable:hover {
-      transform: translateY(-14px) scale(1.08);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
-      z-index: 99;
+      transform: translateY(-22px) scale(1.1) rotate(0deg) !important;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.8) !important;
+      z-index: 99 !important;
     }
     .card-playable.can-play { border-color: #4ade80; box-shadow: 0 0 10px rgba(74,222,128,0.4); }
     .card-playable.cannot-play { opacity: 0.55; cursor: not-allowed; }
-    .card-playable.cannot-play:hover { transform: none; }
+    .card-playable.cannot-play:hover { transform: none !important; box-shadow: none !important; }
 
     /* Card cost gem (top-left) */
     .card-gem {
@@ -311,14 +328,22 @@
     .card-art:not(:has(img)) { opacity: 0.5; }
     .card-name {
       position: absolute;
-      bottom: 30px; left: 4px; right: 4px;
-      font-size: 0.68rem;
+      bottom: 27px; left: 2px; right: 2px;
+      font-size: 0.65rem;
       font-weight: 800;
       text-align: center;
-      color: var(--gold2);
+      color: #0d1117;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(240,210,130,0.92) 15%,
+        rgba(250,222,148,0.97) 50%,
+        rgba(240,210,130,0.92) 85%,
+        transparent 100%
+      );
+      padding: 2px 6px;
     }
     .card-desc {
       position: absolute;
@@ -379,10 +404,12 @@
     .field.opp-field {
       align-items: flex-end;
       padding-bottom: 4px;
+      background: linear-gradient(to bottom, rgba(12,28,65,0.14) 0%, transparent 65%);
     }
     .field.my-field {
       align-items: flex-start;
       padding-top: 4px;
+      background: linear-gradient(to top, rgba(65,38,5,0.14) 0%, transparent 65%);
     }
 
     /* Drop zone hint */
@@ -390,30 +417,35 @@
       position: absolute;
       inset: 6px;
       border-radius: 10px;
-      border: 2px dashed rgba(255,255,255,0.06);
+      border: 1px dashed rgba(255,255,255,0.06);
       pointer-events: none;
     }
     .field.my-field .field-hint {
-      border-color: rgba(255,255,255,0.08);
+      border-color: rgba(201,168,76,0.12);
     }
     .field.drop-active .field-hint {
-      border-color: rgba(74,222,128,0.4);
-      background: rgba(74,222,128,0.04);
+      border-color: rgba(74,222,128,0.5);
+      background: rgba(74,222,128,0.05);
     }
 
     /* Empty field label */
     .field-empty-msg {
-      color: rgba(255,255,255,0.12);
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.09);
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
       pointer-events: none;
       user-select: none;
+      font-style: italic;
+      white-space: nowrap;
     }
 
     /* Minion card on field */
     .minion {
-      width: 94px; height: 118px;
+      width: 102px; height: 128px;
       border-radius: 10px;
       position: relative;
       flex-shrink: 0;
@@ -480,9 +512,10 @@
     .minion .m-hp.damaged { color: #ff4444; }
     .minion .m-name {
       position: absolute;
-      bottom: 17px; left: 3px; right: 3px;
-      font-size: 0.55rem; font-weight: 800;
+      bottom: 18px; left: 3px; right: 3px;
+      font-size: 0.62rem; font-weight: 800;
       text-align: center; color: var(--gold2);
+      text-shadow: 0 1px 4px rgba(0,0,0,1);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .minion .m-status {
@@ -525,12 +558,14 @@
       position: absolute;
       left: 0; right: 0;
       top: 50%;
-      height: 2px;
+      height: 1px;
       background: linear-gradient(90deg,
         transparent 0%,
-        rgba(201,168,76,0.12) 10%,
-        rgba(201,168,76,0.28) 50%,
-        rgba(201,168,76,0.12) 90%,
+        rgba(201,168,76,0.06) 5%,
+        rgba(201,168,76,0.42) 30%,
+        rgba(201,168,76,0.60) 50%,
+        rgba(201,168,76,0.42) 70%,
+        rgba(201,168,76,0.06) 95%,
         transparent 100%
       );
       transform: translateY(-50%);
@@ -552,7 +587,9 @@
     }
     .turn-indicator.your-turn {
       color: #4ade80;
-      border-color: rgba(74,222,128,0.3);
+      border-color: rgba(74,222,128,0.45);
+      background: rgba(74,222,128,0.1);
+      text-shadow: 0 0 14px rgba(74,222,128,0.65);
     }
     .turn-indicator.opp-turn {
       color: var(--muted);
@@ -573,11 +610,11 @@
 
     .end-turn-inner {
       position: relative;
-      padding: 10px 22px;
+      padding: 11px 26px;
       border-radius: 8px;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       font-weight: 800;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.07em;
       text-transform: uppercase;
       color: #0d1117;
       background: linear-gradient(135deg, #e8c97a, #c9a84c, #b8902a);
@@ -1231,12 +1268,24 @@
 
   function renderHand() {
     $myHand.innerHTML = '';
+    var total = gs.me.hand.length;
     gs.me.hand.forEach(function (card, idx) {
       var el = document.createElement('div');
       el.className = 'card-in-hand card-playable';
       var affordable = card.cost <= gs.me.mana && isMyTurn() && gs.me.field.length < MAX_FIELD_SIZE;
       if (affordable) el.classList.add('can-play');
       else            el.classList.add('cannot-play');
+
+      // Fan / arc effect — cards spread from center of hand
+      if (total > 1) {
+        var center   = (total - 1) / 2;
+        var offset   = idx - center;
+        var rotation = offset * 2.8;
+        var yDrop    = Math.abs(offset) * 2.5;
+        el.style.transform       = 'rotate(' + rotation + 'deg) translateY(' + yDrop + 'px)';
+        el.style.transformOrigin = 'bottom center';
+        el.style.zIndex          = String(idx + 1);
+      }
 
       var artHtml = card.picture
         ? '<img src="' + esc(card.picture) + '" alt="" style="width:100%;height:100%;object-fit:cover;object-position:' + (card.picX || 50) + '% ' + (card.picY || 50) + '%">'
