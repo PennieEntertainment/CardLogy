@@ -213,7 +213,7 @@
     /* ─── Hand areas ────────────────────────────────────────── */
     .hand-wrap {
       flex-shrink: 0;
-      height: 140px;
+      height: 160px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -226,14 +226,14 @@
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      gap: -8px; /* cards overlap */
-      height: 124px;
+      gap: 8px;
+      height: 144px;
       position: relative;
     }
 
     /* Generic card back / placeholder */
     .card-in-hand {
-      width: 82px; height: 112px;
+      width: 100px; height: 136px;
       border-radius: 10px;
       border: 2px solid;
       position: relative;
@@ -241,7 +241,7 @@
       transition: transform 0.15s, box-shadow 0.15s;
       flex-shrink: 0;
     }
-    .card-in-hand:nth-child(n) { margin-left: -14px; }
+    .card-in-hand:nth-child(n) { margin-left: 0; }
     .card-in-hand:first-child  { margin-left: 0; }
 
     /* Opponent hand — face-down backs */
@@ -296,12 +296,12 @@
     /* Card mini art */
     .card-art {
       position: absolute;
-      top: 4px; left: 4px; right: 4px;
-      height: 54px;
+      top: 5px; left: 5px; right: 5px;
+      height: 68px;
       background: #111827;
       border-radius: 4px;
       overflow: hidden;
-      font-size: 2rem;
+      font-size: 2.4rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -310,8 +310,8 @@
     .card-art:not(:has(img)) { opacity: 0.5; }
     .card-name {
       position: absolute;
-      bottom: 26px; left: 3px; right: 3px;
-      font-size: 0.58rem;
+      bottom: 30px; left: 4px; right: 4px;
+      font-size: 0.68rem;
       font-weight: 800;
       text-align: center;
       color: var(--gold2);
@@ -321,8 +321,8 @@
     }
     .card-desc {
       position: absolute;
-      bottom: 4px; left: 3px; right: 3px;
-      font-size: 0.5rem;
+      bottom: 6px; left: 4px; right: 4px;
+      font-size: 0.58rem;
       text-align: center;
       color: #aaa;
       white-space: nowrap;
@@ -370,7 +370,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 22px;
       padding: 8px 20px;
       position: relative;
       min-height: 0;
@@ -489,11 +489,20 @@
       height: 72px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0 28px;
-      gap: 12px;
+      justify-content: center;
       position: relative;
       z-index: 6;
+    }
+
+    /* Pin turn-indicator to the left, turn-counter to the right so they
+       can never overlap the centered End Turn button */
+    #turn-indicator {
+      position: absolute;
+      left: 28px;
+    }
+    #turn-counter {
+      position: absolute;
+      right: 28px;
     }
 
     /* Green rope/divider line */
