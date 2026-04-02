@@ -810,7 +810,7 @@
 </head>
 <body>
 
-<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.3.3</div>
+<div id="version-tag" style="position:fixed;top:0.5rem;left:0.75rem;font-family:monospace;font-size:0.7rem;color:#8b949e;opacity:0.7;pointer-events:none;z-index:999;letter-spacing:0.05em;">v0.3.4</div>
 
 <div class="card">
   <div class="logo">
@@ -1471,9 +1471,11 @@
     mqttClient.on('close', function () {
       if (mqttClient === null) return; // intentional close via destroyPeer
       if (lobbyView.classList.contains('active')) {
+        setConnected(false);
         connLabel.textContent = 'Disconnected';
         waitingMsg.textContent = 'Lost connection. Leave and create a new lobby.';
         waitingMsg.hidden = false;
+        startBtn.disabled = true;
       }
     });
   });
@@ -1590,16 +1592,20 @@
           destroyPeer();
         }
       } else if (msg.type === 'start') {
-        buildGameDeck().then(function (gameDeck) {
-          sessionStorage.setItem('cl_game', JSON.stringify({
-            myName:   myName,
-            oppName:  opponentName,
-            myRole:   myRole,
-            roomCode: roomCode,
-            myDeck:   gameDeck,
-          }));
-          window.location.href = 'game.html';
-        });
+        buildGameDeck()
+          .catch(function () { return []; })
+          .then(function (gameDeck) {
+            try {
+              sessionStorage.setItem('cl_game', JSON.stringify({
+                myName:   myName,
+                oppName:  opponentName,
+                myRole:   myRole,
+                roomCode: roomCode,
+                myDeck:   gameDeck,
+              }));
+            } catch (e) { /* proceed anyway */ }
+            window.location.href = 'game.html';
+          });
       }
     });
 
@@ -1653,23 +1659,32 @@
   // ── Start game ───────────────────────────────────────────
   startBtn.addEventListener('click', function () {
     startBtn.disabled = true;
-    buildGameDeck().then(function (gameDeck) {
-      sessionStorage.setItem('cl_game', JSON.stringify({
-        myName:   myName,
-        oppName:  opponentName,
-        myRole:   myRole,
-        roomCode: roomCode,
-        myDeck:   gameDeck,
-      }));
+    buildGameDeck()
+      .catch(function () { return []; })
+      .then(function (gameDeck) {
+        try {
+          sessionStorage.setItem('cl_game', JSON.stringify({
+            myName:   myName,
+            oppName:  opponentName,
+            myRole:   myRole,
+            roomCode: roomCode,
+            myDeck:   gameDeck,
+          }));
+        } catch (e) { /* storage full or blocked — proceed anyway */ }
 
-      // Notify the guest so they also navigate to game.html
-      if (mqttClient && roomCode) {
-        mqttClient.publish(TOPIC_PREFIX + roomCode,
-          JSON.stringify({ from: 'host', type: 'start' }), { qos: 1 });
-      }
+        // Notify the guest so they also navigate to game.html
+        try {
+          if (mqttClient && mqttClient.connected && roomCode) {
+            mqttClient.publish(TOPIC_PREFIX + roomCode,
+              JSON.stringify({ from: 'host', type: 'start' }), { qos: 1 });
+          }
+        } catch (e) { /* publish failed — still navigate */ }
 
-      window.location.href = 'game.html';
-    });
+        window.location.href = 'game.html';
+      })
+      .catch(function () {
+        startBtn.disabled = false; // re-enable if something unexpected failed
+      });
   });
 
   // ── Clear errors on input ─────────────────────────────────
