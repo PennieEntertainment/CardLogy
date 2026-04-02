@@ -68,8 +68,7 @@
       margin-bottom: 0.4rem;
     }
 
-    input[type="text"],
-    input[type="password"] {
+    input[type="text"] {
       width: 100%;
       padding: 0.65rem 0.9rem;
       background: var(--bg);
@@ -81,66 +80,9 @@
       transition: border-color 0.2s;
     }
 
-    input[type="text"]:focus,
-    input[type="password"]:focus {
+    input[type="text"]:focus {
       border-color: var(--accent);
     }
-
-    /* ── Auth tabs ── */
-    .auth-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 1.5rem;
-    }
-
-    .auth-tab {
-      flex: 1;
-      padding: 0.6rem;
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      border-radius: 0;
-      color: var(--muted);
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      letter-spacing: 0.04em;
-      transition: color 0.2s, border-color 0.2s;
-    }
-
-    .auth-tab.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-
-    .auth-tab:active { transform: none; }
-
-    .user-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.5rem 0.75rem;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 1.25rem;
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-
-    .user-bar strong { color: var(--accent2); }
-
-    .logout-btn {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      font-size: 0.75rem;
-      cursor: pointer;
-      text-decoration: underline;
-      padding: 0;
-    }
-
-    .logout-btn:hover { color: var(--red); }
 
     .field { margin-bottom: 1.25rem; }
 
@@ -332,8 +274,8 @@
     }
 
     /* ── Sections ── */
-    #login-view, #setup-view, #lobby-view { display: none; }
-    #login-view.active, #setup-view.active, #lobby-view.active { display: block; animation: fadein 0.3s; }
+    #setup-view, #lobby-view { display: none; }
+    #setup-view.active, #lobby-view.active { display: block; animation: fadein 0.3s; }
 
     .error-msg {
       color: var(--red);
@@ -357,6 +299,89 @@
       height: 1px;
       background: var(--border);
     }
+
+    /* ── Auth view ── */
+    #auth-view { display: none; }
+    #auth-view.active { display: block; animation: fadein 0.3s; }
+
+    .auth-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .auth-tab {
+      padding: 0.6rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .auth-tab.active {
+      background: var(--accent);
+      color: #0d1117;
+    }
+
+    .auth-error {
+      color: var(--red);
+      font-size: 0.8rem;
+      margin-top: 0.4rem;
+      min-height: 1.1em;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="password"]:focus {
+      border-color: var(--accent);
+    }
+
+    .logged-in-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1.25rem;
+      font-size: 0.8rem;
+    }
+
+    .logged-in-bar span { color: var(--muted); }
+    .logged-in-bar strong { color: var(--accent2); }
+
+    .logout-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-decoration: underline;
+    }
+
+    .logout-btn:hover { color: var(--red); }
   </style>
 </head>
 <body>
@@ -369,8 +394,8 @@
     <p>2-Player Lobby</p>
   </div>
 
-  <!-- ── Login / Register ── -->
-  <div id="login-view" class="active">
+  <!-- ── Auth (Login / Register) ── -->
+  <div id="auth-view" class="active">
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-login">Login</button>
       <button class="auth-tab" id="tab-register">Register</button>
@@ -378,43 +403,43 @@
 
     <div id="login-form">
       <div class="field">
-        <label for="login-user">Username</label>
-        <input id="login-user" type="text" placeholder="Your username" maxlength="20" autocomplete="username" />
+        <label for="auth-username">Username</label>
+        <input id="auth-username" type="text" placeholder="Your username" maxlength="20" autocomplete="username" />
       </div>
       <div class="field">
-        <label for="login-pass">Password</label>
-        <input id="login-pass" type="password" placeholder="Your password" maxlength="100" autocomplete="current-password" />
-        <div id="login-error" class="error-msg" hidden></div>
+        <label for="auth-password">Password</label>
+        <input id="auth-password" type="password" placeholder="Your password" maxlength="128" autocomplete="current-password" />
       </div>
-      <div class="btn-row single">
+      <div id="login-error" class="auth-error" hidden></div>
+      <div class="btn-row single" style="margin-top:1rem">
         <button class="btn-primary" id="login-btn">Login</button>
       </div>
     </div>
 
     <div id="register-form" hidden>
       <div class="field">
-        <label for="reg-user">Username</label>
-        <input id="reg-user" type="text" placeholder="Choose a username (letters, numbers, _)" maxlength="20" autocomplete="username" />
+        <label for="reg-username">Username</label>
+        <input id="reg-username" type="text" placeholder="Choose a username" maxlength="20" autocomplete="username" />
       </div>
       <div class="field">
-        <label for="reg-pass">Password</label>
-        <input id="reg-pass" type="password" placeholder="At least 4 characters" maxlength="100" autocomplete="new-password" />
+        <label for="reg-password">Password</label>
+        <input id="reg-password" type="password" placeholder="Choose a password (min 4 chars)" maxlength="128" autocomplete="new-password" />
       </div>
       <div class="field">
-        <label for="reg-pass2">Confirm Password</label>
-        <input id="reg-pass2" type="password" placeholder="Repeat password" maxlength="100" autocomplete="new-password" />
-        <div id="register-error" class="error-msg" hidden></div>
+        <label for="reg-confirm">Confirm Password</label>
+        <input id="reg-confirm" type="password" placeholder="Repeat password" maxlength="128" autocomplete="new-password" />
       </div>
-      <div class="btn-row single">
-        <button class="btn-primary" id="register-btn">Create Account</button>
+      <div id="register-error" class="auth-error" hidden></div>
+      <div class="btn-row single" style="margin-top:1rem">
+        <button class="btn-primary" id="register-btn">Register</button>
       </div>
     </div>
   </div>
 
   <!-- ── Setup ── -->
   <div id="setup-view">
-    <div class="user-bar">
-      <span>Logged in as <strong id="session-username"></strong></span>
+    <div class="logged-in-bar" id="logged-in-bar" hidden>
+      <span>Logged in as <strong id="logged-in-name"></strong></span>
       <button class="logout-btn" id="logout-btn">Logout</button>
     </div>
     <div class="field">
@@ -487,12 +512,189 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 (function () {
   'use strict';
 
-  var RELAY = '%VITE_RELAY_URL%';   // empty in dev (Vite proxy handles it); full URL in prod
+  var RELAY_URL = 'http://localhost:8080';
+
+  // ── DOM refs ──────────────────────────────────────────────
+  var authView      = document.getElementById('auth-view');
+  var setupView     = document.getElementById('setup-view');
+  var tabLogin      = document.getElementById('tab-login');
+  var tabRegister   = document.getElementById('tab-register');
+  var loginForm     = document.getElementById('login-form');
+  var registerForm  = document.getElementById('register-form');
+
+  var authUsername  = document.getElementById('auth-username');
+  var authPassword  = document.getElementById('auth-password');
+  var loginError    = document.getElementById('login-error');
+  var loginBtn      = document.getElementById('login-btn');
+
+  var regUsername   = document.getElementById('reg-username');
+  var regPassword   = document.getElementById('reg-password');
+  var regConfirm    = document.getElementById('reg-confirm');
+  var registerError = document.getElementById('register-error');
+  var registerBtn   = document.getElementById('register-btn');
+
+  var loggedInBar   = document.getElementById('logged-in-bar');
+  var loggedInName  = document.getElementById('logged-in-name');
+  var logoutBtn     = document.getElementById('logout-btn');
+  var nameInput     = document.getElementById('name-input');
+
+  // ── Session ───────────────────────────────────────────────
+  function getSession() {
+    try { return JSON.parse(sessionStorage.getItem('cl_user') || 'null'); } catch { return null; }
+  }
+
+  function setSession(username) {
+    sessionStorage.setItem('cl_user', JSON.stringify({ username }));
+  }
+
+  function clearSession() {
+    sessionStorage.removeItem('cl_user');
+  }
+
+  function showError(el, msg) {
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
+  function clearError(el) { el.hidden = true; el.textContent = ''; }
+
+  // ── After login: switch to setup view ────────────────────
+  function enterSetup(username) {
+    setSession(username);
+    authView.classList.remove('active');
+    setupView.classList.add('active');
+    loggedInBar.hidden = false;
+    loggedInName.textContent = username;
+    if (!nameInput.value) nameInput.value = username;
+  }
+
+  // ── Tab switching ─────────────────────────────────────────
+  tabLogin.addEventListener('click', function () {
+    tabLogin.classList.add('active');
+    tabRegister.classList.remove('active');
+    loginForm.hidden = false;
+    registerForm.hidden = true;
+    clearError(loginError);
+    clearError(registerError);
+  });
+
+  tabRegister.addEventListener('click', function () {
+    tabRegister.classList.add('active');
+    tabLogin.classList.remove('active');
+    registerForm.hidden = false;
+    loginForm.hidden = true;
+    clearError(loginError);
+    clearError(registerError);
+  });
+
+  // ── Login ─────────────────────────────────────────────────
+  loginBtn.addEventListener('click', function () {
+    clearError(loginError);
+    var u = authUsername.value.trim();
+    var p = authPassword.value;
+    if (!u || !p) { showError(loginError, 'Enter username and password.'); return; }
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in…';
+
+    fetch(RELAY_URL + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Login';
+        if (data.ok) {
+          enterSetup(data.username);
+        } else {
+          var msg = data.error === 'bad-credentials'
+            ? 'Incorrect username or password.'
+            : 'Login failed. Make sure the relay server is running.';
+          showError(loginError, msg);
+        }
+      })
+      .catch(function () {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Login';
+        showError(loginError, 'Cannot reach relay server. Run relay.mjs first.');
+      });
+  });
+
+  // ── Register ──────────────────────────────────────────────
+  registerBtn.addEventListener('click', function () {
+    clearError(registerError);
+    var u = regUsername.value.trim();
+    var p = regPassword.value;
+    var c = regConfirm.value;
+    if (!u || !p) { showError(registerError, 'Fill in all fields.'); return; }
+    if (p !== c) { showError(registerError, 'Passwords do not match.'); return; }
+    if (p.length < 4) { showError(registerError, 'Password must be at least 4 characters.'); return; }
+
+    registerBtn.disabled = true;
+    registerBtn.textContent = 'Registering…';
+
+    fetch(RELAY_URL + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        registerBtn.disabled = false;
+        registerBtn.textContent = 'Register';
+        if (data.ok) {
+          enterSetup(data.username);
+        } else {
+          var msgs = {
+            'username-taken': 'That username is already taken.',
+            'invalid-username': 'Username must be 2–20 chars, letters/numbers/_/-.',
+            'password-too-short': 'Password must be at least 4 characters.',
+            'missing-fields': 'Fill in all fields.',
+          };
+          showError(registerError, msgs[data.error] || 'Registration failed. Make sure the relay server is running.');
+        }
+      })
+      .catch(function () {
+        registerBtn.disabled = false;
+        registerBtn.textContent = 'Register';
+        showError(registerError, 'Cannot reach relay server. Run relay.mjs first.');
+      });
+  });
+
+  // ── Logout ────────────────────────────────────────────────
+  logoutBtn.addEventListener('click', function () {
+    clearSession();
+    setupView.classList.remove('active');
+    authView.classList.add('active');
+    loggedInBar.hidden = true;
+    authPassword.value = '';
+    clearError(loginError);
+    clearError(registerError);
+  });
+
+  // Enter on password fields triggers button
+  authPassword.addEventListener('keydown', function (e) { if (e.key === 'Enter') loginBtn.click(); });
+  regConfirm.addEventListener('keydown', function (e) { if (e.key === 'Enter') registerBtn.click(); });
+
+  // ── Auto-login from session ───────────────────────────────
+  var session = getSession();
+  if (session && session.username) {
+    enterSetup(session.username);
+  }
+
+})();
+</script>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+(function () {
+  'use strict';
 
   // ── Free public MQTT broker — no server, no account needed ─
   // broker.emqx.io is a free community broker maintained by EMQ.
@@ -501,25 +703,8 @@
   var TOPIC_PREFIX = 'cardlogy-v1/';
 
   // ── DOM refs ──────────────────────────────────────────────
-  const loginView    = document.getElementById('login-view');
-  const tabLogin     = document.getElementById('tab-login');
-  const tabRegister  = document.getElementById('tab-register');
-  const loginForm    = document.getElementById('login-form');
-  const registerForm = document.getElementById('register-form');
-  const loginUser    = document.getElementById('login-user');
-  const loginPass    = document.getElementById('login-pass');
-  const loginError   = document.getElementById('login-error');
-  const loginBtn     = document.getElementById('login-btn');
-  const regUser      = document.getElementById('reg-user');
-  const regPass      = document.getElementById('reg-pass');
-  const regPass2     = document.getElementById('reg-pass2');
-  const registerError = document.getElementById('register-error');
-  const registerBtn  = document.getElementById('register-btn');
-
   const setupView   = document.getElementById('setup-view');
   const lobbyView   = document.getElementById('lobby-view');
-  const sessionUsername = document.getElementById('session-username');
-  const logoutBtn   = document.getElementById('logout-btn');
   const nameInput   = document.getElementById('name-input');
   const nameError   = document.getElementById('name-error');
   const createBtn   = document.getElementById('create-btn');
@@ -548,144 +733,6 @@
   const leaveBtn     = document.getElementById('leave-btn');
   const roomCodeSection = document.getElementById('room-code-section');
 
-  // ── Auth state ────────────────────────────────────────────
-  var loggedInUser = null;
-
-  function showLoginView() {
-    loginView.classList.add('active');
-    setupView.classList.remove('active');
-    lobbyView.classList.remove('active');
-  }
-
-  function onLoginSuccess(username) {
-    loggedInUser = username;
-    sessionStorage.setItem('cardlogy_user', username);
-    loginView.classList.remove('active');
-    sessionUsername.textContent = username;
-    nameInput.value = username;
-    showSetup();
-  }
-
-  function doLogout() {
-    loggedInUser = null;
-    sessionStorage.removeItem('cardlogy_user');
-    destroyPeer();
-    clearSlot2();
-    name1.textContent = '—';
-    avatar1.textContent = '?';
-    displayCode.textContent = '—';
-    roomCodeSection.hidden = false;
-    roomInput.value = '';
-    joinSection.hidden = true;
-    nameInput.value = '';
-    loginUser.value = '';
-    loginPass.value = '';
-    loginError.hidden = true;
-    showLoginView();
-  }
-
-  // ── Tab switching ──────────────────────────────────────────
-  tabLogin.addEventListener('click', function () {
-    tabLogin.classList.add('active');
-    tabRegister.classList.remove('active');
-    loginForm.hidden = false;
-    registerForm.hidden = true;
-    loginError.hidden = true;
-  });
-
-  tabRegister.addEventListener('click', function () {
-    tabRegister.classList.add('active');
-    tabLogin.classList.remove('active');
-    registerForm.hidden = false;
-    loginForm.hidden = true;
-    registerError.hidden = true;
-  });
-
-  // ── Login submit ──────────────────────────────────────────
-  loginBtn.addEventListener('click', async function () {
-    const username = loginUser.value.trim().toLowerCase();
-    const password = loginPass.value;
-    if (!username || !password) {
-      loginError.textContent = 'Please enter your username and password.';
-      loginError.hidden = false; return;
-    }
-    loginBtn.disabled = true; loginBtn.textContent = 'Logging in…';
-    try {
-      const res = await fetch(RELAY + '/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        loginError.textContent = data.error || 'Login failed.';
-        loginError.hidden = false;
-      } else {
-        onLoginSuccess(data.username);
-      }
-    } catch (e) {
-      loginError.textContent = 'Could not reach the server. Is the relay running?';
-      loginError.hidden = false;
-    }
-    loginBtn.disabled = false; loginBtn.textContent = 'Login';
-  });
-
-  // Allow Enter key on login fields
-  [loginUser, loginPass].forEach(function (el) {
-    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') loginBtn.click(); });
-  });
-
-  // ── Register submit ───────────────────────────────────────
-  registerBtn.addEventListener('click', async function () {
-    const username = regUser.value.trim().toLowerCase();
-    const password = regPass.value;
-    const confirm  = regPass2.value;
-    if (!username || !password) {
-      registerError.textContent = 'Please fill in all fields.';
-      registerError.hidden = false; return;
-    }
-    if (password !== confirm) {
-      registerError.textContent = 'Passwords do not match.';
-      registerError.hidden = false; return;
-    }
-    registerBtn.disabled = true; registerBtn.textContent = 'Creating…';
-    try {
-      const res = await fetch(RELAY + '/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        registerError.textContent = data.error || 'Registration failed.';
-        registerError.hidden = false;
-      } else {
-        onLoginSuccess(data.username);
-      }
-    } catch (e) {
-      registerError.textContent = 'Could not reach the server. Is the relay running?';
-      registerError.hidden = false;
-    }
-    registerBtn.disabled = false; registerBtn.textContent = 'Create Account';
-  });
-
-  // Allow Enter key on register fields
-  [regUser, regPass, regPass2].forEach(function (el) {
-    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') registerBtn.click(); });
-  });
-
-  logoutBtn.addEventListener('click', doLogout);
-
-  // ── Session restore ───────────────────────────────────────
-  (function () {
-    const saved = sessionStorage.getItem('cardlogy_user');
-    if (saved) {
-      onLoginSuccess(saved);
-    } else {
-      showLoginView();
-    }
-  })();
-
   // ── State ─────────────────────────────────────────────────
   var mqttClient   = null;
   var roomCode     = null;
@@ -701,13 +748,11 @@
   }
 
   function showLobby() {
-    loginView.classList.remove('active');
     setupView.classList.remove('active');
     lobbyView.classList.add('active');
   }
 
   function showSetup() {
-    loginView.classList.remove('active');
     lobbyView.classList.remove('active');
     setupView.classList.add('active');
   }

@@ -24,39 +24,43 @@
 
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
-import { pbkdf2Sync, randomBytes, timingSafeEqual } from 'crypto';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { createHash, randomBytes } from 'crypto';
 
-// ── Card storage (in-memory) ───────────────────────────
-// NOTE: Render's free tier has an ephemeral filesystem.
-// Data persists as long as the service stays alive but is
-// cleared on every redeploy or restart. For permanent storage
-// connect a database (e.g. Render PostgreSQL, Supabase, etc.).
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CARDS_FILE = join(__dirname, 'cards.json');
+const USERS_FILE = join(__dirname, 'users.json');
+
+// ── Card storage ───────────────────────────────────────
 let cards = [];
-function persistCards() { /* no-op on ephemeral host */ }
-
-// ── User storage (in-memory) ───────────────────────────
-let users = [];
-function persistUsers() { /* no-op on ephemeral host */ }
-
-function hashPassword(password, salt) {
-  return pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+if (existsSync(CARDS_FILE)) {
+  try { cards = JSON.parse(readFileSync(CARDS_FILE, 'utf8')); } catch { cards = []; }
 }
 
-// Allowed origins: GitHub Pages site + local dev
-const ALLOWED_ORIGINS = [
-  'https://pennieentertainment.github.io',
-  'http://localhost:5173',
-  'http://localhost:4173',
-];
+function persistCards() {
+  writeFileSync(CARDS_FILE, JSON.stringify(cards, null, 2), 'utf8');
+}
 
-function setCORS(req, res) {
-  const origin = req.headers.origin || '';
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
+// ── User storage ───────────────────────────────────────
+let users = [];
+if (existsSync(USERS_FILE)) {
+  try { users = JSON.parse(readFileSync(USERS_FILE, 'utf8')); } catch { users = []; }
+}
+
+function persistUsers() {
+  writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+}
+
+function hashPassword(salt, password) {
+  return createHash('sha256').update(salt + ':' + password).digest('hex');
+}
+
+function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Vary', 'Origin');
 }
 
 function readBody(req) {
@@ -151,13 +155,72 @@ function attachClient(ws) {
 }
 
 const server = createServer(async (req, res) => {
-  setCORS(req, res);
+  setCORS(res);
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204); res.end(); return;
   }
 
   const pathname = new URL(req.url, 'http://x').pathname;
+
+  // POST /auth/login
+  if (req.method === 'POST' && pathname === '/auth/login') {
+    try {
+      const body = await readBody(req);
+      const username = String(body.username || '').trim();
+      const password = String(body.password || '');
+      if (!username || !password) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'missing-fields' })); return;
+      }
+      const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+      if (!user || hashPassword(user.salt, password) !== user.hash) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'bad-credentials' })); return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, username: user.username }));
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'invalid-request' }));
+    }
+    return;
+  }
+
+  // POST /auth/register
+  if (req.method === 'POST' && pathname === '/auth/register') {
+    try {
+      const body = await readBody(req);
+      const username = String(body.username || '').trim().slice(0, 20);
+      const password = String(body.password || '');
+      if (!username || !password) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'missing-fields' })); return;
+      }
+      if (!/^[a-zA-Z0-9_-]{2,20}$/.test(username)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'invalid-username' })); return;
+      }
+      if (password.length < 4) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'password-too-short' })); return;
+      }
+      if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+        res.writeHead(409, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'username-taken' })); return;
+      }
+      const salt = randomBytes(16).toString('hex');
+      const hash = hashPassword(salt, password);
+      users.push({ username, hash, salt });
+      persistUsers();
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, username }));
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'invalid-request' }));
+    }
+    return;
+  }
 
   // GET /cards
   if (req.method === 'GET' && pathname === '/cards') {
@@ -194,67 +257,6 @@ const server = createServer(async (req, res) => {
     persistCards();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, deleted: before - cards.length })); return;
-  }
-
-  // POST /register
-  if (req.method === 'POST' && pathname === '/register') {
-    try {
-      const body = await readBody(req);
-      const username = String(body.username || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      if (!username || username.length < 3 || !password || password.length < 4) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Username must be ≥ 3 characters and password ≥ 4 characters.' })); return;
-      }
-      if (!/^[a-z0-9_]+$/.test(username)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Username may only contain letters, numbers, and underscores.' })); return;
-      }
-      if (users.find(u => u.username === username)) {
-        res.writeHead(409, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Username already taken.' })); return;
-      }
-      const salt = randomBytes(16).toString('hex');
-      const hash = hashPassword(password, salt);
-      users.push({ username, hash, salt });
-      persistUsers();
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, username }));
-    } catch (e) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // POST /login
-  if (req.method === 'POST' && pathname === '/login') {
-    try {
-      const body = await readBody(req);
-      const username = String(body.username || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      const user = users.find(u => u.username === username);
-      if (!user) {
-        // Compute a dummy hash to prevent timing-based username enumeration
-        const dummySalt = randomBytes(16).toString('hex');
-        hashPassword(password, dummySalt);
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid username or password.' })); return;
-      }
-      const hash = hashPassword(password, user.salt);
-      const hashBuf   = Buffer.from(hash);
-      const storedBuf = Buffer.from(user.hash);
-      if (hashBuf.length !== storedBuf.length || !timingSafeEqual(hashBuf, storedBuf)) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid username or password.' })); return;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, username }));
-    } catch (e) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
   }
 
   // Default
