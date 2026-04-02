@@ -673,7 +673,7 @@
 
   <script>
     // ── Constants ──────────────────────────────────────────
-    const API        = '/api/cards';   // relay write endpoint (local dev)
+    const API        = '%VITE_RELAY_URL%/cards';  // empty prefix in dev (Vite proxy); full URL in prod
     const CARDS_JSON = './cards.json'; // static read (GitHub Pages + local)
 
     const KEYWORDS = [

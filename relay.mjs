@@ -24,43 +24,39 @@
 
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from 'crypto';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CARDS_FILE = join(__dirname, 'cards.json');
-
-// ── Card storage ───────────────────────────────────────
+// ── Card storage (in-memory) ───────────────────────────
+// NOTE: Render's free tier has an ephemeral filesystem.
+// Data persists as long as the service stays alive but is
+// cleared on every redeploy or restart. For permanent storage
+// connect a database (e.g. Render PostgreSQL, Supabase, etc.).
 let cards = [];
-if (existsSync(CARDS_FILE)) {
-  try { cards = JSON.parse(readFileSync(CARDS_FILE, 'utf8')); } catch { cards = []; }
-}
+function persistCards() { /* no-op on ephemeral host */ }
 
-function persistCards() {
-  writeFileSync(CARDS_FILE, JSON.stringify(cards, null, 2), 'utf8');
-}
-
-// ── User storage ───────────────────────────────────────
-const USERS_FILE = join(__dirname, 'users.json');
+// ── User storage (in-memory) ───────────────────────────
 let users = [];
-if (existsSync(USERS_FILE)) {
-  try { users = JSON.parse(readFileSync(USERS_FILE, 'utf8')); } catch { users = []; }
-}
-
-function persistUsers() {
-  writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
-}
+function persistUsers() { /* no-op on ephemeral host */ }
 
 function hashPassword(password, salt) {
   return pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
 }
 
-function setCORS(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+// Allowed origins: GitHub Pages site + local dev
+const ALLOWED_ORIGINS = [
+  'https://pennieentertainment.github.io',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
+
+function setCORS(req, res) {
+  const origin = req.headers.origin || '';
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Vary', 'Origin');
 }
 
 function readBody(req) {
@@ -155,7 +151,7 @@ function attachClient(ws) {
 }
 
 const server = createServer(async (req, res) => {
-  setCORS(res);
+  setCORS(req, res);
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204); res.end(); return;

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "relay": "node relay.mjs"
+    "relay": "node relay.mjs",
+    "start": "node relay.mjs"
   },
   "devDependencies": {
     "vite": "^6.2.5"

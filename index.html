@@ -492,7 +492,7 @@
 (function () {
   'use strict';
 
-  var RELAY = '/api';   // proxied to relay server via vite; change to full URL for production
+  var RELAY = '%VITE_RELAY_URL%';   // empty in dev (Vite proxy handles it); full URL in prod
 
   // ── Free public MQTT broker — no server, no account needed ─
   // broker.emqx.io is a free community broker maintained by EMQ.
