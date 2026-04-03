@@ -1448,6 +1448,7 @@
   // ─── MQTT ─────────────────────────────────────────────────
   var mqtt = null;
   var mqttSubscribed = false; // true once SUBACK received
+  var _netQueue = [];          // messages buffered while MQTT is offline
   // Guest waits for host's 'game-start' before its turn logic begins
   var guestReceivedStart = false;
 
@@ -1466,6 +1467,9 @@
       mqtt.subscribe(TOPIC_PREFIX + roomCode, { qos: 1 }, function (err) {
         if (err) { console.error('[MQTT] subscribe error', err); return; }
         mqttSubscribed = true;
+        // Flush any messages that were queued while the connection was down
+        var _fq = _netQueue.splice(0);
+        _fq.forEach(function (p) { mqtt.publish(TOPIC_PREFIX + roomCode, p, { qos: 1 }); });
         // Signal the init() handler that we're ready to start
         onMqttReady();
       });
@@ -1508,9 +1512,13 @@
   }
 
   function sendNet(data) {
-    if (!mqtt || !mqtt.connected || !roomCode) return;
-    mqtt.publish(TOPIC_PREFIX + roomCode,
-      JSON.stringify({ sid: mySessionId, from: myRole, type: 'msg', data: data }), { qos: 1 });
+    if (!roomCode) return;
+    var payload = JSON.stringify({ sid: mySessionId, from: myRole, type: 'msg', data: data });
+    if (!mqtt || !mqtt.connected) {
+      _netQueue.push(payload); // buffer until reconnected
+      return;
+    }
+    mqtt.publish(TOPIC_PREFIX + roomCode, payload, { qos: 1 });
   }
 
   function handleNetMsg(data) {
@@ -1898,6 +1906,7 @@
       myField:    gs.me.field.map(minionToNetCard),
       myHp:       gs.me.hp,
       yourHp:     gs.opp.hp,
+      yourField:  gs.opp.field.map(minionToNetCard),
       handCount:  gs.me.hand.length,
     });
 
@@ -1908,9 +1917,12 @@
   function receiveEndTurn(data) {
     // Authoritative end-of-turn state sync — recovers from any messages that
     // were lost in transit during the opponent's turn (play, attack, etc.).
-    if (data.myField) gs.opp.field = data.myField.map(netCardToFieldMinion);
+    if (data.myField)   gs.opp.field = data.myField.map(netCardToFieldMinion);
     if (data.myHp   != null) gs.opp.hp = data.myHp;
     if (data.yourHp != null) gs.me.hp  = data.yourHp;
+    // Sync receiver's own field — corrects any deaths that were caused by the
+    // sender's attacks but whose 'attack' messages were lost in transit.
+    if (data.yourField) gs.me.field = data.yourField.map(netCardToFieldMinion);
     if (data.handCount != null) {
       var hc = Math.max(0, Math.min(10, data.handCount));
       gs.opp.hand = new Array(hc).fill(0).map(function () { return { id: 'opp_hidden' }; });
