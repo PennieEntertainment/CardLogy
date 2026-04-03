@@ -8,10 +8,10 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --felt:       #1a472a;
-      --felt-dark:  #122f1c;
-      --felt-light: #1e5535;
-      --rail:       #0d2010;
+      --felt:       #12141e;
+      --felt-dark:  #0a0c14;
+      --felt-light: #1a1d2e;
+      --rail:       #07080f;
       --gold:       #c9a84c;
       --gold2:      #e8c97a;
       --text:       #e6edf3;
@@ -34,25 +34,42 @@
       width: 100vw;
       height: 100vh;
       background:
-        linear-gradient(180deg, rgba(8,20,42,0.2) 0%, transparent 28%, transparent 72%, rgba(52,28,4,0.2) 100%),
-        radial-gradient(ellipse 90% 65% at 50% 50%, #1e5535 0%, #0e2918 100%);
+        radial-gradient(ellipse 80% 45% at 50% 18%, rgba(30,50,140,0.22) 0%, transparent 100%),
+        radial-gradient(ellipse 80% 45% at 50% 82%, rgba(120,50,10,0.18) 0%, transparent 100%),
+        radial-gradient(ellipse 110% 70% at 50% 50%, rgba(30,30,60,0.35) 0%, transparent 100%),
+        linear-gradient(180deg, #0d0f1c 0%, #13151f 35%, #151720 65%, #100f1a 100%);
       display: flex;
       flex-direction: column;
       position: relative;
       overflow: hidden;
     }
 
-    /* Subtle wood rail lines */
-    #board::before, #board::after {
+    /* Stone-tile texture overlay */
+    #board::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, transparent 1px, transparent 40px, rgba(255,255,255,0.012) 41px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.012) 0px, transparent 1px, transparent 60px, rgba(255,255,255,0.012) 61px);
+    }
+
+    /* Ornate metal rail lines */
+    #board::before {
       content: '';
       position: absolute;
       left: 0; right: 0;
-      height: 6px;
-      background: linear-gradient(90deg, #0a1a0a, #1a3a1a, #0a1a0a);
+      height: 5px;
+      background: linear-gradient(90deg,
+        #07080f 0%, #1a1428 10%, #3a2e55 30%,
+        #c9a84c 45%, #e8c97a 50%, #c9a84c 55%,
+        #3a2e55 70%, #1a1428 90%, #07080f 100%
+      );
       z-index: 10;
+      top: 0;
     }
-    #board::before { top: 0; }
-    #board::after  { bottom: 0; }
 
     /* ─── Info bars (top / bottom) ──────────────────────────── */
     .info-bar {
@@ -62,15 +79,35 @@
       align-items: center;
       gap: 14px;
       padding: 0 20px;
-      background: linear-gradient(180deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.38) 100%);
-      border-bottom: 1px solid rgba(201,168,76,0.22);
+      background: linear-gradient(180deg, rgba(5,6,18,0.88) 0%, rgba(10,12,28,0.72) 100%);
+      border-bottom: 1px solid rgba(201,168,76,0.30);
       z-index: 5;
       position: relative;
+      box-shadow: 0 2px 18px rgba(0,0,0,0.6);
+    }
+    .info-bar.top {
+      background: linear-gradient(180deg, rgba(5,6,22,0.92) 0%, rgba(12,14,32,0.70) 100%);
     }
     .info-bar.bottom {
       border-bottom: none;
-      border-top: 1px solid rgba(201,168,76,0.22);
+      border-top: 1px solid rgba(201,168,76,0.30);
       flex-direction: row-reverse;
+      background: linear-gradient(0deg, rgba(20,8,4,0.88) 0%, rgba(14,12,24,0.70) 100%);
+      box-shadow: 0 -2px 18px rgba(0,0,0,0.6);
+    }
+    /* Bottom ornate rail */
+    .info-bar.bottom::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 0;
+      height: 5px;
+      background: linear-gradient(90deg,
+        #07080f 0%, #1a1428 10%, #3a2e55 30%,
+        #c9a84c 45%, #e8c97a 50%, #c9a84c 55%,
+        #3a2e55 70%, #1a1428 90%, #07080f 100%
+      );
+      z-index: 6;
     }
 
     /* ─── Hero Portrait ─────────────────────────────────────── */
@@ -239,7 +276,23 @@
       position: relative;
     }
 
-    /* Generic card back / placeholder */
+    /* Hand fan arc — player */
+    #my-hand .card-in-hand:nth-child(1)  { transform: rotate(-6deg)  translateY(6px);  }
+    #my-hand .card-in-hand:nth-child(2)  { transform: rotate(-3.5deg) translateY(3px);  }
+    #my-hand .card-in-hand:nth-child(3)  { transform: rotate(-1.5deg) translateY(1px);  }
+    #my-hand .card-in-hand:nth-child(4)  { transform: rotate(0deg)    translateY(0px);  }
+    #my-hand .card-in-hand:nth-child(5)  { transform: rotate(1.5deg)  translateY(1px);  }
+    #my-hand .card-in-hand:nth-child(6)  { transform: rotate(3.5deg)  translateY(3px);  }
+    #my-hand .card-in-hand:nth-child(7)  { transform: rotate(6deg)    translateY(6px);  }
+    #my-hand .card-in-hand:nth-child(8)  { transform: rotate(8deg)    translateY(10px); }
+    #my-hand .card-in-hand:nth-child(9)  { transform: rotate(10deg)   translateY(14px); }
+    #my-hand .card-in-hand:nth-child(10) { transform: rotate(12deg)   translateY(18px); }
+    /* Override: hover always lifts cleanly */
+    #my-hand .card-playable:hover {
+      transform: translateY(-28px) scale(1.12) rotate(0deg) !important;
+    }
+
+
     .card-in-hand {
       width: 100px; height: 136px;
       border-radius: 10px;
@@ -255,9 +308,18 @@
 
     /* Opponent hand — face-down backs */
     .card-back {
-      background: linear-gradient(135deg, #1a2840 0%, #0d1825 100%);
+      background: linear-gradient(135deg, #1a1f3a 0%, #0e1228 60%, #0a0d1e 100%);
       border-color: var(--gold);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      box-shadow:
+        0 2px 10px rgba(0,0,0,0.7),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .card-back::before {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 6px;
+      border: 1px solid rgba(201,168,76,0.18);
     }
     .card-back::after {
       content: '⚜';
@@ -267,7 +329,8 @@
       align-items: center;
       justify-content: center;
       font-size: 1.6rem;
-      color: rgba(201,168,76,0.35);
+      color: rgba(201,168,76,0.40);
+      text-shadow: 0 0 10px rgba(201,168,76,0.3);
     }
 
     /* Opponent hand — compact face-down backs */
@@ -281,18 +344,24 @@
 
     /* Player hand — visible cards */
     .card-playable {
-      background: linear-gradient(170deg, #1a2840 0%, #0d1825 100%);
+      background: linear-gradient(170deg, #1e2548 0%, #141a35 55%, #0e1228 100%);
       border-color: var(--gold);
-      box-shadow: 0 3px 10px rgba(0,0,0,0.6);
+      box-shadow:
+        0 4px 16px rgba(0,0,0,0.75),
+        inset 0 1px 0 rgba(255,255,255,0.07),
+        inset 0 -1px 0 rgba(0,0,0,0.3);
     }
     .card-playable:hover {
-      transform: translateY(-22px) scale(1.1) rotate(0deg) !important;
-      box-shadow: 0 14px 34px rgba(0,0,0,0.8) !important;
+      transform: translateY(-28px) scale(1.12) rotate(0deg) !important;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.85), 0 0 30px rgba(201,168,76,0.25) !important;
       z-index: 99 !important;
     }
-    .card-playable.can-play { border-color: #4ade80; box-shadow: 0 0 10px rgba(74,222,128,0.4); }
-    .card-playable.cannot-play { opacity: 0.55; cursor: not-allowed; }
-    .card-playable.cannot-play:hover { transform: none !important; box-shadow: none !important; }
+    .card-playable.can-play {
+      border-color: #4ade80;
+      box-shadow: 0 0 14px rgba(74,222,128,0.45), 0 4px 14px rgba(0,0,0,0.7);
+    }
+    .card-playable.cannot-play { opacity: 0.72; cursor: not-allowed; }
+    .card-playable.cannot-play:hover { transform: none !important; box-shadow: 0 4px 16px rgba(0,0,0,0.75) !important; }
 
     /* Card cost gem (top-left) */
     .card-gem {
@@ -315,42 +384,48 @@
     .card-art {
       position: absolute;
       top: 5px; left: 5px; right: 5px;
-      height: 68px;
-      background: #111827;
-      border-radius: 4px;
+      height: 70px;
+      background: #0d1220;
+      border-radius: 5px;
       overflow: hidden;
       font-size: 2.4rem;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
     }
-    .card-art img { opacity: 1; }
-    .card-art:not(:has(img)) { opacity: 0.5; }
+    .card-art img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+    .card-art:not(:has(img)) { opacity: 0.6; }
     .card-name {
       position: absolute;
-      bottom: 27px; left: 2px; right: 2px;
+      bottom: 27px; left: 0; right: 0;
       font-size: 0.65rem;
       font-weight: 800;
       text-align: center;
-      color: #0d1117;
+      color: var(--gold2);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       background: linear-gradient(90deg,
         transparent 0%,
-        rgba(240,210,130,0.92) 15%,
-        rgba(250,222,148,0.97) 50%,
-        rgba(240,210,130,0.92) 85%,
+        rgba(10,8,20,0.88) 12%,
+        rgba(14,10,28,0.95) 50%,
+        rgba(10,8,20,0.88) 88%,
         transparent 100%
       );
-      padding: 2px 6px;
+      padding: 3px 8px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
     }
     .card-desc {
       position: absolute;
       bottom: 6px; left: 4px; right: 4px;
       font-size: 0.58rem;
       text-align: center;
-      color: #aaa;
+      color: #9ba3b5;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -404,12 +479,16 @@
     .field.opp-field {
       align-items: flex-end;
       padding-bottom: 4px;
-      background: linear-gradient(to bottom, rgba(12,28,65,0.14) 0%, transparent 65%);
+      background:
+        radial-gradient(ellipse 70% 100% at 50% 0%, rgba(20,50,160,0.14) 0%, transparent 80%),
+        linear-gradient(to bottom, rgba(15,30,100,0.10) 0%, transparent 70%);
     }
     .field.my-field {
       align-items: flex-start;
       padding-top: 4px;
-      background: linear-gradient(to top, rgba(65,38,5,0.14) 0%, transparent 65%);
+      background:
+        radial-gradient(ellipse 70% 100% at 50% 100%, rgba(140,60,10,0.14) 0%, transparent 80%),
+        linear-gradient(to top, rgba(100,40,5,0.10) 0%, transparent 70%);
     }
 
     /* Drop zone hint */
@@ -417,11 +496,11 @@
       position: absolute;
       inset: 6px;
       border-radius: 10px;
-      border: 1px dashed rgba(255,255,255,0.06);
+      border: 1px dashed rgba(255,255,255,0.08);
       pointer-events: none;
     }
     .field.my-field .field-hint {
-      border-color: rgba(201,168,76,0.12);
+      border-color: rgba(201,168,76,0.18);
     }
     .field.drop-active .field-hint {
       border-color: rgba(74,222,128,0.5);
@@ -433,9 +512,9 @@
       position: absolute;
       left: 50%; top: 50%;
       transform: translate(-50%, -50%);
-      color: rgba(255,255,255,0.09);
+      color: rgba(200,180,255,0.12);
       font-size: 0.68rem;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.20em;
       text-transform: uppercase;
       pointer-events: none;
       user-select: none;
@@ -459,11 +538,17 @@
       position: absolute;
       inset: 0;
       border-radius: 10px;
-      background: linear-gradient(170deg, #1a2840, #0d1825);
+      background: linear-gradient(170deg, #1e2548, #0e1228);
       border: 2px solid var(--gold);
       overflow: hidden;
       display: flex; align-items: center; justify-content: center;
       font-size: 2.4rem;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .minion .minion-art img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: top center;
     }
     .minion:hover { transform: translateY(-8px); z-index: 20; }
     .minion.can-attack .minion-art {
@@ -552,23 +637,26 @@
       right: 28px;
     }
 
-    /* Green rope/divider line */
+    /* Arcane divider line */
     .center-bar::before {
       content: '';
       position: absolute;
       left: 0; right: 0;
       top: 50%;
-      height: 1px;
+      height: 2px;
       background: linear-gradient(90deg,
         transparent 0%,
-        rgba(201,168,76,0.06) 5%,
-        rgba(201,168,76,0.42) 30%,
-        rgba(201,168,76,0.60) 50%,
-        rgba(201,168,76,0.42) 70%,
-        rgba(201,168,76,0.06) 95%,
+        rgba(100,80,200,0.08) 5%,
+        rgba(180,140,255,0.35) 25%,
+        rgba(201,168,76,0.70) 40%,
+        rgba(232,201,122,0.90) 50%,
+        rgba(201,168,76,0.70) 60%,
+        rgba(180,140,255,0.35) 75%,
+        rgba(100,80,200,0.08) 95%,
         transparent 100%
       );
       transform: translateY(-50%);
+      box-shadow: 0 0 8px rgba(201,168,76,0.2);
     }
 
     /* Turn indicator */
