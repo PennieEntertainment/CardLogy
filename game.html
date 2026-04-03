@@ -8,19 +8,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --felt:       #12141e;
-      --felt-dark:  #0a0c14;
-      --felt-light: #1a1d2e;
-      --rail:       #07080f;
-      --gold:       #c9a84c;
-      --gold2:      #e8c97a;
-      --text:       #e6edf3;
-      --muted:      #8b949e;
+      --felt:       #3a2208;
+      --felt-dark:  #271608;
+      --felt-light: #4a2e10;
+      --rail:       #1a0e04;
+      --gold:       #e8b84b;
+      --gold2:      #f5d07a;
+      --text:       #f5e6c8;
+      --muted:      #c09068;
       --red:        #f85149;
       --blue-gem:   #1a6abf;
       --empty-gem:  #101c2e;
-      --border:     #30363d;
-      --surface:    #161b22;
+      --border:     #6b3e18;
+      --surface:    #2e1b0c;
     }
 
     html, body {
@@ -36,24 +36,24 @@
       /* Hearthstone-style warm wood arena */
       background:
         /* subtle vignette */
-        radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%),
+        radial-gradient(ellipse 100% 100% at 50% 50%, transparent 50%, rgba(0,0,0,0.40) 100%),
         /* center stone slab */
-        radial-gradient(ellipse 75% 18% at 50% 50%, rgba(80,65,35,0.55) 0%, transparent 100%),
+        radial-gradient(ellipse 82% 26% at 50% 50%, rgba(215,185,130,0.28) 0%, transparent 100%),
         /* blue glow top (opponent side) */
-        radial-gradient(ellipse 70% 35% at 50% 0%, rgba(20,40,120,0.30) 0%, transparent 100%),
+        radial-gradient(ellipse 70% 35% at 50% 0%, rgba(25,55,175,0.50) 0%, transparent 100%),
         /* orange glow bottom (player side) */
-        radial-gradient(ellipse 70% 35% at 50% 100%, rgba(110,55,10,0.30) 0%, transparent 100%),
+        radial-gradient(ellipse 70% 35% at 50% 100%, rgba(165,82,12,0.52) 0%, transparent 100%),
         /* wood planks — warm base */
         linear-gradient(180deg,
-          #1a1108 0%,
-          #251a0a 12%,
-          #2e2010 22%,
-          #281c0d 35%,
-          #1e1509 50%,
-          #281c0d 65%,
-          #2e2010 78%,
-          #251a0a 88%,
-          #1a1108 100%
+          #3a220a 0%,
+          #4a2d0e 12%,
+          #573618 22%,
+          #4e2f12 35%,
+          #3e2408 50%,
+          #4e2f12 65%,
+          #573618 78%,
+          #4a2d0e 88%,
+          #3a220a 100%
         );
       display: flex;
       flex-direction: column;
@@ -72,19 +72,19 @@
         /* horizontal plank grain */
         repeating-linear-gradient(
           180deg,
-          rgba(255,200,80,0.028) 0px, transparent 1px,
-          transparent 28px, rgba(0,0,0,0.06) 29px, transparent 30px
+          rgba(255,200,80,0.048) 0px, transparent 1px,
+          transparent 28px, rgba(0,0,0,0.09) 29px, transparent 30px
         ),
         /* vertical grain shimmer */
         repeating-linear-gradient(
           90deg,
-          transparent 0px, rgba(255,180,60,0.015) 1px,
+          transparent 0px, rgba(255,180,60,0.028) 1px,
           transparent 2px, transparent 80px
         ),
         /* opponent lane glow */
-        radial-gradient(ellipse 60% 28% at 50% 28%, rgba(60,90,200,0.12) 0%, transparent 100%),
+        radial-gradient(ellipse 60% 28% at 50% 28%, rgba(60,90,220,0.20) 0%, transparent 100%),
         /* player lane glow */
-        radial-gradient(ellipse 60% 28% at 50% 72%, rgba(180,100,20,0.14) 0%, transparent 100%);
+        radial-gradient(ellipse 60% 28% at 50% 72%, rgba(200,115,20,0.22) 0%, transparent 100%);
     }
 
     /* Ornate metal rail lines */
@@ -94,12 +94,13 @@
       left: 0; right: 0;
       height: 5px;
       background: linear-gradient(90deg,
-        #07080f 0%, #1a1428 10%, #3a2e55 30%,
-        #c9a84c 45%, #e8c97a 50%, #c9a84c 55%,
-        #3a2e55 70%, #1a1428 90%, #07080f 100%
+        #1a0e04 0%, #2a1810 10%, #5a3828 30%,
+        #e8b84b 45%, #f5d07a 50%, #e8b84b 55%,
+        #5a3828 70%, #2a1810 90%, #1a0e04 100%
       );
       z-index: 10;
       top: 0;
+      box-shadow: 0 2px 12px rgba(232,184,75,0.30);
     }
 
     /* ─── Info bars (top / bottom) ──────────────────────────── */
@@ -110,21 +111,21 @@
       align-items: center;
       gap: 14px;
       padding: 0 20px;
-      background: linear-gradient(180deg, rgba(5,6,18,0.88) 0%, rgba(10,12,28,0.72) 100%);
-      border-bottom: 1px solid rgba(201,168,76,0.30);
+      background: linear-gradient(180deg, rgba(40,22,8,0.95) 0%, rgba(58,32,10,0.88) 100%);
+      border-bottom: 1px solid rgba(232,184,75,0.40);
       z-index: 5;
       position: relative;
-      box-shadow: 0 2px 18px rgba(0,0,0,0.6);
+      box-shadow: 0 2px 22px rgba(0,0,0,0.55);
     }
     .info-bar.top {
-      background: linear-gradient(180deg, rgba(5,6,22,0.92) 0%, rgba(12,14,32,0.70) 100%);
+      background: linear-gradient(180deg, rgba(22,12,4,0.96) 0%, rgba(45,25,8,0.88) 100%);
     }
     .info-bar.bottom {
       border-bottom: none;
-      border-top: 1px solid rgba(201,168,76,0.30);
+      border-top: 1px solid rgba(232,184,75,0.40);
       flex-direction: row-reverse;
-      background: linear-gradient(0deg, rgba(20,8,4,0.88) 0%, rgba(14,12,24,0.70) 100%);
-      box-shadow: 0 -2px 18px rgba(0,0,0,0.6);
+      background: linear-gradient(0deg, rgba(48,26,8,0.96) 0%, rgba(58,32,10,0.88) 100%);
+      box-shadow: 0 -2px 22px rgba(0,0,0,0.55);
     }
     /* Bottom ornate rail */
     .info-bar.bottom::after {
@@ -134,11 +135,12 @@
       bottom: 0;
       height: 5px;
       background: linear-gradient(90deg,
-        #07080f 0%, #1a1428 10%, #3a2e55 30%,
-        #c9a84c 45%, #e8c97a 50%, #c9a84c 55%,
-        #3a2e55 70%, #1a1428 90%, #07080f 100%
+        #1a0e04 0%, #2a1810 10%, #5a3828 30%,
+        #e8b84b 45%, #f5d07a 50%, #e8b84b 55%,
+        #5a3828 70%, #2a1810 90%, #1a0e04 100%
       );
       z-index: 6;
+      box-shadow: 0 -2px 12px rgba(232,184,75,0.30);
     }
 
     /* ─── Hero Portrait ─────────────────────────────────────── */
@@ -147,12 +149,13 @@
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #3a3a4a, #1a1a2a);
+      background: radial-gradient(circle at 35% 30%, #5a4a3a, #2e2018);
       border: 2px solid var(--gold);
       box-shadow:
-        0 0 0 2px rgba(0,0,0,0.75),
-        inset 0 1px 0 rgba(255,255,255,0.1),
-        0 4px 16px rgba(0,0,0,0.7);
+        0 0 0 2px rgba(0,0,0,0.6),
+        0 0 0 4px rgba(232,184,75,0.25),
+        inset 0 1px 0 rgba(255,220,120,0.2),
+        0 4px 16px rgba(0,0,0,0.6);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -610,7 +613,7 @@
       position: absolute;
       left: 50%; top: 50%;
       transform: translate(-50%, -50%);
-      color: rgba(200,180,255,0.12);
+      color: rgba(232,184,75,0.18);
       font-size: 0.68rem;
       letter-spacing: 0.20em;
       text-transform: uppercase;
@@ -812,17 +815,17 @@
       height: 2px;
       background: linear-gradient(90deg,
         transparent 0%,
-        rgba(100,80,200,0.08) 5%,
-        rgba(180,140,255,0.35) 25%,
-        rgba(201,168,76,0.70) 40%,
-        rgba(232,201,122,0.90) 50%,
-        rgba(201,168,76,0.70) 60%,
-        rgba(180,140,255,0.35) 75%,
-        rgba(100,80,200,0.08) 95%,
+        rgba(160,100,30,0.12) 5%,
+        rgba(220,170,80,0.50) 25%,
+        rgba(232,184,75,0.85) 40%,
+        rgba(245,208,122,1.00) 50%,
+        rgba(232,184,75,0.85) 60%,
+        rgba(220,170,80,0.50) 75%,
+        rgba(160,100,30,0.12) 95%,
         transparent 100%
       );
       transform: translateY(-50%);
-      box-shadow: 0 0 8px rgba(201,168,76,0.2);
+      box-shadow: 0 0 12px rgba(232,184,75,0.35);
     }
 
     /* Turn indicator */
@@ -870,12 +873,13 @@
       font-weight: 800;
       letter-spacing: 0.07em;
       text-transform: uppercase;
-      color: #0d1117;
-      background: linear-gradient(135deg, #e8c97a, #c9a84c, #b8902a);
+      color: #1a0804;
+      background: linear-gradient(135deg, #f5d07a, #e8b84b, #c8921e);
       box-shadow:
-        0 0 0 2px rgba(0,0,0,0.6),
-        0 4px 14px rgba(0,0,0,0.5),
-        inset 0 1px 0 rgba(255,255,255,0.25);
+        0 0 0 2px rgba(0,0,0,0.5),
+        0 4px 18px rgba(0,0,0,0.5),
+        0 0 20px rgba(232,184,75,0.35),
+        inset 0 1px 0 rgba(255,245,180,0.40);
       transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
     }
     #end-turn-btn:not(:disabled) .end-turn-inner {
@@ -921,8 +925,8 @@
       50%       { box-shadow: 0 0 16px rgba(248,81,73,0.9); }
     }
     @keyframes glow-gold {
-      0%, 100% { box-shadow: 0 0 0 2px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.5), 0 0 8px rgba(201,168,76,0.2); }
-      50%       { box-shadow: 0 0 0 2px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.5), 0 0 20px rgba(201,168,76,0.5); }
+      0%, 100% { box-shadow: 0 0 0 2px rgba(0,0,0,0.5), 0 4px 18px rgba(0,0,0,0.5), 0 0 14px rgba(232,184,75,0.40); }
+      50%       { box-shadow: 0 0 0 2px rgba(0,0,0,0.5), 0 4px 18px rgba(0,0,0,0.5), 0 0 30px rgba(232,184,75,0.70); }
     }
     @keyframes slide-in-top {
       from { transform: translateY(-20px); opacity: 0; }
@@ -956,7 +960,7 @@
       opacity: 0;
     }
     #turn-banner .banner-text {
-      background: rgba(0,0,0,0.82);
+      background: linear-gradient(160deg, rgba(60,30,8,0.95), rgba(35,18,5,0.98));
       border: 2px solid var(--gold);
       border-radius: 12px;
       padding: 18px 48px;
@@ -965,7 +969,7 @@
       color: var(--gold2);
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+      box-shadow: 0 8px 50px rgba(0,0,0,0.75), 0 0 40px rgba(232,184,75,0.25);
       animation: banner-pop 0.4s cubic-bezier(0.22,1,0.36,1);
     }
     @keyframes banner-pop {
@@ -1016,9 +1020,9 @@
     .tt-card {
       width: 180px;
       border-radius: 12px;
-      background: linear-gradient(170deg, #1a2840, #0d1825);
+      background: linear-gradient(170deg, #2a3c58 0%, #18274a 100%);
       border: 2px solid var(--gold);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+      box-shadow: 0 8px 36px rgba(0,0,0,0.75), 0 0 24px rgba(232,184,75,0.20);
       padding: 10px;
       font-size: 0.78rem;
       color: var(--text);
@@ -1059,12 +1063,12 @@
     }
     #game-over.show { display: flex; }
     .game-over-box {
-      background: #161b22;
+      background: linear-gradient(160deg, #3d2410 0%, #2a1608 50%, #1e1006 100%);
       border: 2px solid var(--gold);
       border-radius: 16px;
       padding: 40px 56px;
       text-align: center;
-      box-shadow: 0 16px 60px rgba(0,0,0,0.9);
+      box-shadow: 0 16px 70px rgba(0,0,0,0.85), 0 0 60px rgba(232,184,75,0.15);
       animation: banner-pop 0.4s cubic-bezier(0.22,1,0.36,1);
     }
     .game-over-title {

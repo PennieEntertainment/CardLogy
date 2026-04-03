@@ -8,35 +8,38 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #0d1117;
-      --surface: #161b22;
-      --border:  #30363d;
-      --accent:  #c9a84c;
-      --accent2: #e8c97a;
-      --green:   #3fb950;
+      --bg:      #1c0f07;
+      --surface: #2e1b0c;
+      --border:  #6b3e18;
+      --accent:  #e8b84b;
+      --accent2: #f5d07a;
+      --green:   #4ed96d;
       --red:     #f85149;
       --blue:    #58a6ff;
-      --text:    #e6edf3;
-      --muted:   #8b949e;
+      --text:    #f5e6c8;
+      --muted:   #c09068;
       --radius:  12px;
     }
 
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
+      background:
+        radial-gradient(ellipse 80% 45% at 50% 0%, rgba(220,140,30,0.20) 0%, transparent 65%),
+        linear-gradient(180deg, #100905 0%, #1c1208 40%, #221408 100%);
       color: var(--text);
       min-height: 100vh;
     }
 
     /* ── Header ───────────────────────────── */
     header {
-      background: var(--surface);
+      background: linear-gradient(180deg, #3a2210 0%, #2c1a0a 100%);
       border-bottom: 1px solid var(--border);
       padding: 0.9rem 1.5rem;
       display: flex;
       align-items: center;
       gap: 0.75rem;
       flex-wrap: wrap;
+      box-shadow: 0 2px 18px rgba(0,0,0,0.55);
     }
 
     .logo {
@@ -46,6 +49,7 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
       margin-right: auto;
+      text-shadow: 0 2px 14px rgba(232,184,75,0.50);
     }
 
     header a {
@@ -61,7 +65,7 @@
       align-items: center;
       gap: 0.65rem;
       padding: 0.8rem 1.5rem;
-      background: var(--surface);
+      background: linear-gradient(180deg, #2c1a0a 0%, #221408 100%);
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
     }
@@ -69,7 +73,7 @@
     .toolbar input[type="text"],
     .toolbar select {
       padding: 0.45rem 0.75rem;
-      background: var(--bg);
+      background: rgba(18,10,4,0.75);
       border: 1px solid var(--border);
       border-radius: 8px;
       color: var(--text);
@@ -107,7 +111,7 @@
     button:active { transform: scale(0.97); }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .btn-primary  { background: var(--accent);     color: #0d1117; }
+    .btn-primary  { background: linear-gradient(135deg, var(--accent2), var(--accent), #c8921e); color: #1a0804; box-shadow: 0 2px 10px rgba(200,140,20,0.3); }
     .btn-danger   { background: var(--red);         color: #fff; }
     .btn-ghost    { background: transparent; border: 1px solid var(--border); color: var(--text); }
     .btn-sm       { padding: 0.3rem 0.65rem; font-size: 0.8rem; }
