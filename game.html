@@ -276,50 +276,38 @@
       position: relative;
     }
 
-    /* Hand fan arc — player */
-    #my-hand .card-in-hand:nth-child(1)  { transform: rotate(-6deg)  translateY(6px);  }
-    #my-hand .card-in-hand:nth-child(2)  { transform: rotate(-3.5deg) translateY(3px);  }
-    #my-hand .card-in-hand:nth-child(3)  { transform: rotate(-1.5deg) translateY(1px);  }
-    #my-hand .card-in-hand:nth-child(4)  { transform: rotate(0deg)    translateY(0px);  }
-    #my-hand .card-in-hand:nth-child(5)  { transform: rotate(1.5deg)  translateY(1px);  }
-    #my-hand .card-in-hand:nth-child(6)  { transform: rotate(3.5deg)  translateY(3px);  }
-    #my-hand .card-in-hand:nth-child(7)  { transform: rotate(6deg)    translateY(6px);  }
-    #my-hand .card-in-hand:nth-child(8)  { transform: rotate(8deg)    translateY(10px); }
-    #my-hand .card-in-hand:nth-child(9)  { transform: rotate(10deg)   translateY(14px); }
-    #my-hand .card-in-hand:nth-child(10) { transform: rotate(12deg)   translateY(18px); }
-    /* Override: hover always lifts cleanly */
-    #my-hand .card-playable:hover {
-      transform: translateY(-28px) scale(1.12) rotate(0deg) !important;
-    }
-
-
+    /* ─── Card base ─────────────────────────────────────────── */
     .card-in-hand {
-      width: 100px; height: 136px;
-      border-radius: 10px;
-      border: 2px solid;
+      width: 104px; height: 140px;
+      border-radius: 12px;
+      border: none;
       position: relative;
       cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s;
       flex-shrink: 0;
+      will-change: transform;
     }
     /* Card overlap in hand */
-    .card-in-hand + .card-in-hand  { margin-left: -22px; }
+    .card-in-hand + .card-in-hand  { margin-left: -26px; }
     .card-in-hand:first-child       { margin-left: 0; }
 
-    /* Opponent hand — face-down backs */
+    /* ─── Opponent face-down backs ──────────────────────────── */
     .card-back {
-      background: linear-gradient(135deg, #1a1f3a 0%, #0e1228 60%, #0a0d1e 100%);
-      border-color: var(--gold);
+      background:
+        radial-gradient(ellipse 70% 80% at 50% 40%, #22204a, #0f0e28),
+        linear-gradient(135deg, #1c1a40, #0d0c22);
       box-shadow:
-        0 2px 10px rgba(0,0,0,0.7),
-        inset 0 1px 0 rgba(255,255,255,0.06);
+        0 0 0 2px #c9a84c,
+        0 0 0 4px rgba(0,0,0,0.7),
+        0 4px 16px rgba(0,0,0,0.7);
     }
+    /* Inner decorative inset */
     .card-back::before {
       content: '';
       position: absolute;
-      inset: 4px;
-      border-radius: 6px;
-      border: 1px solid rgba(201,168,76,0.18);
+      inset: 5px;
+      border-radius: 8px;
+      border: 1px solid rgba(201,168,76,0.22);
     }
     .card-back::after {
       content: '⚜';
@@ -328,134 +316,204 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.6rem;
-      color: rgba(201,168,76,0.40);
-      text-shadow: 0 0 10px rgba(201,168,76,0.3);
+      font-size: 1.7rem;
+      color: rgba(201,168,76,0.45);
+      text-shadow: 0 0 12px rgba(201,168,76,0.35);
     }
 
-    /* Opponent hand — compact face-down backs */
+    /* Opponent hand — compact */
     #opp-hand .card-in-hand {
-      width: 50px;
-      height: 70px;
-      border-radius: 7px;
+      width: 52px;
+      height: 72px;
+      border-radius: 8px;
     }
-    #opp-hand .card-in-hand + .card-in-hand { margin-left: -10px; }
-    #opp-hand .card-back::after { font-size: 1rem; }
+    #opp-hand .card-in-hand + .card-in-hand { margin-left: -12px; }
+    #opp-hand .card-back::after { font-size: 1.1rem; }
 
-    /* Player hand — visible cards */
+    /* ─── Player card — Hearthstone-style stone frame ───────── */
     .card-playable {
-      background: linear-gradient(170deg, #1e2548 0%, #141a35 55%, #0e1228 100%);
-      border-color: var(--gold);
+      /* Solid warm stone body — NO transparency */
+      background:
+        radial-gradient(ellipse 90% 60% at 50% 35%, #2e2410 0%, #1e1809 55%, #130f06 100%),
+        linear-gradient(180deg, #27200c 0%, #1a1508 100%);
       box-shadow:
-        0 4px 16px rgba(0,0,0,0.75),
-        inset 0 1px 0 rgba(255,255,255,0.07),
-        inset 0 -1px 0 rgba(0,0,0,0.3);
+        0 0 0 2px #c8a830,          /* gold ring */
+        0 0 0 4px #0e0b04,          /* dark gap */
+        0 0 0 6px rgba(140,100,12,0.35), /* outer warm glow */
+        0 8px 28px rgba(0,0,0,0.9),
+        inset 0 1px 2px rgba(255,210,80,0.08);
+    }
+    /* Inner stone texture frame line */
+    .card-playable::before {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 9px;
+      border: 1px solid rgba(200,168,48,0.20);
+      pointer-events: none;
+      z-index: 2;
     }
     .card-playable:hover {
-      transform: translateY(-28px) scale(1.12) rotate(0deg) !important;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.85), 0 0 30px rgba(201,168,76,0.25) !important;
+      transform: translateY(-32px) scale(1.14) rotate(0deg) !important;
+      box-shadow:
+        0 0 0 2px #e8c84a,
+        0 0 0 4px #0e0b04,
+        0 0 0 6px rgba(200,160,20,0.5),
+        0 24px 48px rgba(0,0,0,0.9),
+        0 0 40px rgba(200,168,40,0.3) !important;
       z-index: 99 !important;
     }
     .card-playable.can-play {
-      border-color: #4ade80;
-      box-shadow: 0 0 14px rgba(74,222,128,0.45), 0 4px 14px rgba(0,0,0,0.7);
+      box-shadow:
+        0 0 0 2px #4ade80,
+        0 0 0 4px rgba(0,0,0,0.6),
+        0 0 0 6px rgba(74,222,128,0.3),
+        0 0 20px rgba(74,222,128,0.45),
+        0 8px 28px rgba(0,0,0,0.9);
     }
-    .card-playable.cannot-play { opacity: 0.72; cursor: not-allowed; }
-    .card-playable.cannot-play:hover { transform: none !important; box-shadow: 0 4px 16px rgba(0,0,0,0.75) !important; }
+    .card-playable.cannot-play {
+      filter: brightness(0.65) saturate(0.6);
+      cursor: not-allowed;
+    }
+    .card-playable.cannot-play:hover {
+      transform: none !important;
+      filter: brightness(0.65) saturate(0.6) !important;
+    }
 
-    /* Card cost gem (top-left) */
+    /* ─── Mana cost gem ─────────────────────────────────────── */
     .card-gem {
       position: absolute;
-      top: -9px; left: -9px;
-      width: 28px; height: 28px;
+      top: -12px; left: -12px;
+      width: 34px; height: 34px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
-      border: 2px solid #aedaf7;
+      background: radial-gradient(circle at 32% 28%, #b8deff, #1e7ae0 45%, #0a3d92);
+      border: 2.5px solid #d4eeff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.82rem;
+      font-size: 0.95rem;
       font-weight: 900;
       color: #fff;
-      z-index: 5;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      text-shadow: 0 1px 5px rgba(0,0,0,0.9);
+      z-index: 6;
+      box-shadow: 0 3px 12px rgba(10,60,200,0.55), 0 2px 4px rgba(0,0,0,0.8);
     }
-    /* Card mini art */
+
+    /* ─── Art oval (Hearthstone portrait) ───────────────────── */
     .card-art {
       position: absolute;
-      top: 5px; left: 5px; right: 5px;
-      height: 70px;
-      background: #0d1220;
-      border-radius: 5px;
+      top: 7px; left: 8px; right: 8px;
+      height: 72px;
+      /* Oval portrait shape */
+      border-radius: 50% 50% 42% 42% / 40% 40% 58% 58%;
       overflow: hidden;
-      font-size: 2.4rem;
+      background: #0d0a06;
+      border: 2.5px solid #c8a830;
+      box-shadow:
+        0 3px 12px rgba(0,0,0,0.8),
+        inset 0 -4px 10px rgba(0,0,0,0.5);
+      z-index: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+      font-size: 2.6rem;
     }
     .card-art img {
-      width: 100%; height: 100%;
+      width: 110%; height: 110%;
       object-fit: cover;
-      object-position: top center;
+      object-position: center top;
+      margin-top: -4px;
     }
-    .card-art:not(:has(img)) { opacity: 0.6; }
+    .card-art:not(:has(img)) { color: rgba(200,168,48,0.55); }
+
+    /* ─── Name scroll / nameplate ───────────────────────────── */
     .card-name {
       position: absolute;
-      bottom: 27px; left: 0; right: 0;
-      font-size: 0.65rem;
-      font-weight: 800;
+      /* Sits just below art, slightly overlapping its bottom edge */
+      bottom: 43px; left: -4px; right: -4px;
+      z-index: 4;
+      font-size: 0.63rem;
+      font-weight: 900;
       text-align: center;
-      color: var(--gold2);
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,1);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(10,8,20,0.88) 12%,
-        rgba(14,10,28,0.95) 50%,
-        rgba(10,8,20,0.88) 88%,
-        transparent 100%
-      );
-      padding: 3px 8px;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+      padding: 5px 16px;
+      /* Solid scroll banner — winged at the edges */
+      background:
+        linear-gradient(90deg,
+          transparent   0%,
+          #1c1506      6%,
+          #3e2e08     14%,
+          #5c4410     22%,
+          #4e3a0c     76%,
+          #3e2e08     86%,
+          #1c1506     94%,
+          transparent 100%
+        );
+      border-top:    1px solid rgba(210,175,55,0.40);
+      border-bottom: 1px solid rgba(210,175,55,0.40);
     }
+
+    /* ─── Description / text box ────────────────────────────── */
     .card-desc {
       position: absolute;
-      bottom: 6px; left: 4px; right: 4px;
-      font-size: 0.58rem;
+      bottom: 12px; left: 8px; right: 8px;
+      /* Parchment-style box */
+      background: linear-gradient(180deg, #c4a25a 0%, #b08840 100%);
+      border-radius: 5px;
+      border: 1px solid rgba(80,50,0,0.4);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.25);
+      font-size: 0.52rem;
       text-align: center;
-      color: #9ba3b5;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.4;
+      color: #1e1000;
       font-style: italic;
+      min-height: 24px;
+      max-height: 28px;
+      padding: 3px 5px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: normal;
+      z-index: 3;
     }
+    /* Hide parchment box if no description */
+    .card-desc:empty { display: none; }
+
+    /* ─── Attack (gold diamond) ─────────────────────────────── */
     .card-atk {
       position: absolute;
-      bottom: -9px; left: -9px;
-      width: 28px; height: 28px;
-      background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
-      border: 2px solid #ffe49e;
-      border-radius: 4px;
+      bottom: -12px; left: -12px;
+      width: 34px; height: 34px;
+      background: radial-gradient(circle at 32% 28%, #ffe898, #dc8c00 50%, #7a4a00);
+      border: 2.5px solid #ffd870;
+      border-radius: 5px;
       transform: rotate(45deg);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.78rem; font-weight: 900; color: #fff;
-      z-index: 5;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      font-size: 0.88rem; font-weight: 900; color: #fff;
+      text-shadow: 0 1px 5px rgba(0,0,0,0.9);
+      z-index: 6;
+      box-shadow: 0 3px 12px rgba(180,100,0,0.6), 0 2px 4px rgba(0,0,0,0.8);
     }
     .card-atk span { transform: rotate(-45deg); display: block; }
+
+    /* ─── Health (red circle) ───────────────────────────────── */
     .card-hp {
       position: absolute;
-      bottom: -9px; right: -9px;
-      width: 28px; height: 28px;
+      bottom: -12px; right: -12px;
+      width: 34px; height: 34px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
-      border: 2px solid #ffb3b3;
+      background: radial-gradient(circle at 32% 28%, #ff9a9a, #c42020 50%, #6a0808);
+      border: 2.5px solid #ffb4b4;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.78rem; font-weight: 900; color: #fff;
-      z-index: 5;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      font-size: 0.88rem; font-weight: 900; color: #fff;
+      text-shadow: 0 1px 5px rgba(0,0,0,0.9);
+      z-index: 6;
+      box-shadow: 0 3px 12px rgba(180,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8);
     }
 
     /* ─── Battlefield ───────────────────────────────────────── */
@@ -524,95 +582,133 @@
 
     /* Minion card on field */
     .minion {
-      width: 102px; height: 128px;
-      border-radius: 10px;
+      width: 106px; height: 132px;
+      border-radius: 12px;
       position: relative;
       flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s;
     }
     .minion .minion-art {
       position: absolute;
       inset: 0;
-      border-radius: 10px;
-      background: linear-gradient(170deg, #1e2548, #0e1228);
-      border: 2px solid var(--gold);
+      border-radius: 12px;
+      /* Same solid stone frame as hand cards */
+      background:
+        radial-gradient(ellipse 90% 60% at 50% 38%, #2e2410 0%, #1e1809 55%, #130f06 100%),
+        linear-gradient(180deg, #27200c 0%, #1a1508 100%);
+      border: none;
+      box-shadow:
+        0 0 0 2px #c8a830,
+        0 0 0 4px #0e0b04,
+        0 0 0 6px rgba(140,100,12,0.3),
+        0 6px 20px rgba(0,0,0,0.8);
       overflow: hidden;
       display: flex; align-items: center; justify-content: center;
       font-size: 2.4rem;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.5);
+    }
+    /* Portrait oval inside minion art area */
+    .minion .minion-art::before {
+      content: '';
+      position: absolute;
+      top: 5px; left: 7px; right: 7px;
+      height: 70px;
+      border-radius: 50% 50% 42% 42% / 40% 40% 58% 58%;
+      border: 1.5px solid rgba(200,168,48,0.35);
+      pointer-events: none;
+      z-index: 2;
     }
     .minion .minion-art img {
       width: 100%; height: 100%;
       object-fit: cover;
-      object-position: top center;
+      object-position: center top;
     }
-    .minion:hover { transform: translateY(-8px); z-index: 20; }
+    .minion:hover { transform: translateY(-10px); z-index: 20; }
     .minion.can-attack .minion-art {
-      border-color: #f59e0b;
-      box-shadow: 0 0 14px rgba(245,158,11,0.6);
+      box-shadow:
+        0 0 0 2px #f59e0b,
+        0 0 0 4px rgba(0,0,0,0.6),
+        0 0 18px rgba(245,158,11,0.7);
       animation: pulse-gold 1.2s ease-in-out infinite;
     }
-    .minion.sleeping .minion-art { filter: brightness(0.5); }
-    /* Currently selected attacker — brighter gold ring */
+    .minion.sleeping .minion-art { filter: brightness(0.45) saturate(0.5); }
     .minion.attacking .minion-art {
-      border-color: #fde047;
-      box-shadow: 0 0 0 3px rgba(253,224,71,0.65), 0 0 22px rgba(253,224,71,0.9);
+      box-shadow:
+        0 0 0 2px #fde047,
+        0 0 0 4px rgba(0,0,0,0.5),
+        0 0 0 6px rgba(253,224,71,0.5),
+        0 0 28px rgba(253,224,71,0.9);
       animation: pulse-gold 0.6s ease-in-out infinite;
     }
-    /* Opponent minion that can be targeted */
     .minion.targetable { cursor: crosshair; }
     .minion.targetable .minion-art {
-      border-color: #f85149;
-      box-shadow: 0 0 0 3px rgba(248,81,73,0.5), 0 0 18px rgba(248,81,73,0.8);
+      box-shadow:
+        0 0 0 2px #f85149,
+        0 0 0 4px rgba(0,0,0,0.5),
+        0 0 0 6px rgba(248,81,73,0.4),
+        0 0 22px rgba(248,81,73,0.8);
       animation: pulse-red 0.8s ease-in-out infinite;
     }
     .minion .m-atk {
       position: absolute;
-      bottom: -9px; left: -9px;
-      width: 30px; height: 30px;
-      background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
-      border: 2px solid #ffe49e;
-      border-radius: 4px;
+      bottom: -12px; left: -12px;
+      width: 32px; height: 32px;
+      background: radial-gradient(circle at 32% 28%, #ffe898, #dc8c00 50%, #7a4800);
+      border: 2.5px solid #ffd870;
+      border-radius: 5px;
       transform: rotate(45deg);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.82rem; font-weight: 900; color: #fff;
+      font-size: 0.85rem; font-weight: 900; color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
       z-index: 5;
+      box-shadow: 0 3px 10px rgba(180,100,0,0.55), 0 2px 4px rgba(0,0,0,0.8);
     }
     .minion .m-atk span { transform: rotate(-45deg); display: block; }
     .minion .m-hp {
       position: absolute;
-      bottom: -9px; right: -9px;
-      width: 30px; height: 30px;
+      bottom: -12px; right: -12px;
+      width: 32px; height: 32px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
-      border: 2px solid #ffb3b3;
+      background: radial-gradient(circle at 32% 28%, #ff9a9a, #c42020 50%, #6a0808);
+      border: 2.5px solid #ffb4b4;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.82rem; font-weight: 900; color: #fff;
+      font-size: 0.85rem; font-weight: 900; color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
       z-index: 5;
+      box-shadow: 0 3px 10px rgba(180,0,0,0.55), 0 2px 4px rgba(0,0,0,0.8);
     }
     .minion .m-hp.damaged { color: #ff4444; }
     .minion .m-name {
       position: absolute;
-      bottom: 18px; left: 3px; right: 3px;
-      font-size: 0.62rem; font-weight: 800;
-      text-align: center; color: var(--gold2);
-      text-shadow: 0 1px 4px rgba(0,0,0,1);
+      bottom: 20px; left: 4px; right: 4px;
+      font-size: 0.60rem; font-weight: 900;
+      text-align: center; color: #fff;
+      text-shadow: 0 1px 5px rgba(0,0,0,1);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      /* Solid nameplate strip */
+      background:
+        linear-gradient(90deg,
+          transparent 0%, #1c1506 8%, #4e3a0c 20%, #4e3a0c 80%, #1c1506 92%, transparent 100%
+        );
+      padding: 3px 8px;
+      border-top: 1px solid rgba(200,168,48,0.3);
+      border-bottom: 1px solid rgba(200,168,48,0.3);
+      z-index: 3;
     }
     .minion .m-status {
       position: absolute;
-      top: -9px; left: 50%;
+      top: -10px; left: 50%;
       transform: translateX(-50%);
       display: flex; gap: 2px;
     }
     .m-badge {
-      background: #1a472a; border: 1px solid var(--gold); border-radius: 3px;
+      background: #1e1508; border: 1px solid #c8a830; border-radius: 3px;
       font-size: 0.45rem; font-weight: 700; padding: 1px 4px; color: var(--gold2);
       white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.7);
     }
 
     /* ─── Center Divider ────────────────────────────────────── */
