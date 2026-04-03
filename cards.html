@@ -116,7 +116,7 @@
     .grid-container {
       padding: 1.75rem 1.5rem;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 2.5rem 1.75rem;
       justify-items: center;
     }
@@ -132,47 +132,60 @@
     /* ── Hearthstone Card Frame ───────────── */
     .hs-card {
       position: relative;
-      width: 185px;
-      height: 265px;
-      border-radius: 14px;
+      width: 200px;
+      height: 290px;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.25s, box-shadow 0.25s;
       overflow: visible;
       flex-shrink: 0;
     }
 
     .hs-card:hover {
-      transform: translateY(-8px) scale(1.04);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.65);
+      transform: translateY(-10px) scale(1.05);
       z-index: 10;
     }
 
-    /* inner frame clips the art */
+    /* Card shell */
     .hs-card .frame {
       position: absolute;
       inset: 0;
-      border-radius: 14px;
+      border-radius: 16px 16px 12px 12px;
       overflow: hidden;
-      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
     }
 
     /* Type backgrounds */
-    .hs-card.type-minion .frame { background: linear-gradient(170deg, #1a2840 0%, #0d1825 100%); }
-    .hs-card.type-spell   .frame { background: linear-gradient(170deg, #2a1a44 0%, #160d30 100%); }
+    .hs-card.type-minion .frame {
+      background: radial-gradient(ellipse at 50% 20%, #2d3f58 0%, #111e2e 50%, #0a1520 100%);
+    }
+    .hs-card.type-spell .frame {
+      background: radial-gradient(ellipse at 50% 20%, #3d2068 0%, #1a0d38 50%, #0d0620 100%);
+    }
 
-    /* Rarity borders */
-    .hs-card.rarity-common    .frame { border: 2px solid #6b7280; }
-    .hs-card.rarity-rare      .frame { border: 2px solid #3b82f6; box-shadow: 0 0 12px rgba(59,130,246,0.25); }
-    .hs-card.rarity-epic      .frame { border: 2px solid #a855f7; box-shadow: 0 0 12px rgba(168,85,247,0.3); }
-    .hs-card.rarity-legendary .frame { border: 2px solid #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.45); }
+    /* Rarity border rings + glow */
+    .hs-card.rarity-common    .frame { box-shadow: 0 0 0 3px #5a6270, 0 0 0 5px #0a0c10, 0 8px 24px rgba(0,0,0,0.8); }
+    .hs-card.rarity-rare      .frame { box-shadow: 0 0 0 3px #2563eb, 0 0 0 5px #0a0c10, 0 0 28px rgba(59,130,246,0.4),  0 8px 24px rgba(0,0,0,0.8); }
+    .hs-card.rarity-epic      .frame { box-shadow: 0 0 0 3px #9333ea, 0 0 0 5px #0a0c10, 0 0 28px rgba(168,85,247,0.45), 0 8px 24px rgba(0,0,0,0.8); }
+    .hs-card.rarity-legendary .frame { box-shadow: 0 0 0 3px #d97706, 0 0 0 5px #0a0c10, 0 0 35px rgba(245,158,11,0.55), 0 8px 24px rgba(0,0,0,0.8); }
 
-    /* Art area */
+    /* Inner decorative golden inset line */
+    .hs-card .frame::before {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      border-radius: 12px 12px 8px 8px;
+      border: 1px solid rgba(200,160,60,0.18);
+      pointer-events: none;
+      z-index: 8;
+    }
+
+    /* Art area — rectangular at top, golden bottom-shadow separator */
     .hs-card .art {
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 148px;
+      height: 145px;
       background: #111827;
       overflow: hidden;
+      box-shadow: 0 3px 0 rgba(180,140,50,0.45), 0 5px 10px rgba(0,0,0,0.5);
     }
 
     .hs-card .art img {
@@ -190,125 +203,168 @@
       opacity: 0.25;
     }
 
-    /* Name banner */
+    /* Vignette fading art into the card body */
+    .hs-card .art::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 50px;
+      background: linear-gradient(to bottom, transparent, rgba(10,18,28,0.6));
+      pointer-events: none;
+    }
+
+    /* Name banner — fading ribbon that bleeds past card edges */
     .hs-card .name-banner {
       position: absolute;
-      left: 12px; right: 12px;
-      top: 138px;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(201,168,76,0.9) 18%,
-        rgba(232,201,122,0.97) 50%,
-        rgba(201,168,76,0.9) 82%,
-        transparent 100%
-      );
-      text-align: center;
-      padding: 4px 0;
-      font-size: 0.77rem;
-      font-weight: 800;
-      color: #0d1117;
-      border-radius: 3px;
+      left: -12px; right: -12px;
+      top: 131px;
+      height: 28px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 900;
+      color: #1a0800;
+      letter-spacing: 0.03em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      z-index: 2;
-      letter-spacing: 0.03em;
+      text-shadow: 0 1px 0 rgba(255,225,100,0.35);
+      background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(70,45,5,0.98)   4%,
+        rgba(170,120,35,1)  11%,
+        rgba(225,178,65,1)  24%,
+        rgba(248,210,100,1) 50%,
+        rgba(225,178,65,1)  76%,
+        rgba(170,120,35,1)  89%,
+        rgba(70,45,5,0.98)  96%,
+        transparent 100%
+      );
+      border-top:    1px solid rgba(255,235,130,0.45);
+      border-bottom: 1px solid rgba(110,70,5,0.6);
     }
 
-    /* Type strip */
-    .hs-card .type-strip {
+    /* Rarity gem dot below name banner */
+    .hs-card .rarity-gem {
       position: absolute;
-      left: 0; right: 0;
-      top: 162px;
-      text-align: center;
-      font-size: 0.58rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-      z-index: 2;
+      top: 161px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      z-index: 5;
+      border: 1px solid rgba(0,0,0,0.45);
     }
+    .hs-card.rarity-common    .rarity-gem { background: radial-gradient(circle at 35% 30%, #e5e7eb, #6b7280); box-shadow: 0 0 4px rgba(200,200,200,0.5); }
+    .hs-card.rarity-rare      .rarity-gem { background: radial-gradient(circle at 35% 30%, #93c5fd, #1d4ed8); box-shadow: 0 0 8px rgba(59,130,246,0.85); }
+    .hs-card.rarity-epic      .rarity-gem { background: radial-gradient(circle at 35% 30%, #d8b4fe, #7e22ce); box-shadow: 0 0 8px rgba(168,85,247,0.9); }
+    .hs-card.rarity-legendary .rarity-gem { background: radial-gradient(circle at 35% 30%, #fde68a, #b45309); box-shadow: 0 0 10px rgba(245,158,11,1); }
 
-    /* Description box */
+    /* Description box — parchment / scroll style */
     .hs-card .desc-box {
       position: absolute;
       left: 10px; right: 10px;
-      top: 175px; bottom: 10px;
-      background: rgba(0,0,0,0.6);
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.05);
-      padding: 5px 7px;
+      top: 174px; bottom: 26px;
+      background: linear-gradient(155deg, #f5e9cc 0%, #ede2ba 55%, #e8d8a5 100%);
+      border-radius: 6px 6px 4px 4px;
+      border: 1px solid rgba(140,100,25,0.4);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.4);
+      padding: 5px 8px;
       font-size: 0.6rem;
-      line-height: 1.45;
-      color: #c9d1d9;
+      line-height: 1.5;
+      color: #2a1800;
       overflow: hidden;
       z-index: 2;
       font-style: italic;
+      text-align: center;
     }
 
     .hs-card .desc-box .kw {
-      color: #ffd700;
-      font-weight: 800;
+      color: #6b2200;
+      font-weight: 900;
       font-style: normal;
+    }
+
+    /* Type / race strip — dark golden pill at bottom */
+    .hs-card .type-strip {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      background: linear-gradient(90deg, #0c0a05 0%, #28200e 35%, #28200e 65%, #0c0a05 100%);
+      border: 1px solid rgba(190,150,55,0.5);
+      border-radius: 999px;
+      padding: 2px 14px;
+      font-size: 0.55rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #c8a040;
+      z-index: 3;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.7);
     }
 
     /* Mana gem — top-left */
     .hs-card .gem-mana {
       position: absolute;
-      top: -10px; left: -10px;
-      width: 40px; height: 40px;
+      top: -14px; left: -14px;
+      width: 50px; height: 50px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #8ac4f5, #1a6abf 55%, #0a3570);
-      border: 2px solid #aedaf7;
+      background: radial-gradient(circle at 33% 28%, #cce8ff, #1565c0 50%, #082760);
+      border: 3px solid #a8d8f8;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.05rem;
+      font-size: 1.25rem;
       font-weight: 900;
       color: #fff;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-      z-index: 5;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+      text-shadow: 0 1px 8px rgba(0,0,0,0.9);
+      z-index: 6;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.75), inset 0 2px 5px rgba(255,255,255,0.3);
     }
 
-    /* Attack gem — bottom-left (rotated square / diamond) */
+    /* Attack diamond — bottom-left */
     .hs-card .gem-attack {
       position: absolute;
-      bottom: -10px; left: -10px;
-      width: 40px; height: 40px;
-      background: radial-gradient(circle at 35% 30%, #ffe08a, #d4890a 55%, #7a4a00);
-      border: 2px solid #ffe49e;
+      bottom: -14px; left: -14px;
+      width: 48px; height: 48px;
+      background: radial-gradient(circle at 33% 28%, #fff0a0, #d4890a 52%, #7a4200);
+      border: 3px solid #ffe89e;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.05rem;
+      font-size: 1.25rem;
       font-weight: 900;
       color: #fff;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-      z-index: 5;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.9);
+      z-index: 6;
       border-radius: 8px;
       transform: rotate(45deg);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+      box-shadow: 0 3px 14px rgba(0,0,0,0.75), inset 0 2px 5px rgba(255,255,255,0.2);
     }
     .hs-card .gem-attack span { transform: rotate(-45deg); display: block; }
 
     /* Health orb — bottom-right */
     .hs-card .gem-defense {
       position: absolute;
-      bottom: -10px; right: -10px;
-      width: 40px; height: 40px;
+      bottom: -14px; right: -14px;
+      width: 50px; height: 50px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #ff9090, #c0392b 55%, #6a1010);
-      border: 2px solid #ffb3b3;
+      background: radial-gradient(circle at 33% 28%, #ffb8b8, #c0392b 50%, #6a0a0a);
+      border: 3px solid #ffaaaa;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.05rem;
+      font-size: 1.25rem;
       font-weight: 900;
       color: #fff;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-      z-index: 5;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+      text-shadow: 0 1px 8px rgba(0,0,0,0.9);
+      z-index: 6;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.75), inset 0 2px 5px rgba(255,255,255,0.3);
     }
 
 
@@ -787,6 +843,11 @@
       banner.className = 'name-banner';
       banner.textContent = card.name || 'Unnamed';
       frame.appendChild(banner);
+
+      // Rarity gem
+      const rarityGem = document.createElement('div');
+      rarityGem.className = 'rarity-gem';
+      frame.appendChild(rarityGem);
 
       // Type strip — shows race for minions, type for spells
       const typeStrip = document.createElement('div');
