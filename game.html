@@ -1923,10 +1923,10 @@
   }
 
   function receivePlayMinion(data) {
-    if (!data.card) return;
-    if (data.myField) {
-      gs.opp.field = data.myField.map(netCardToFieldMinion);
-    } else {
+    // receiveCardEffect will set gs.opp.field from data.myField (authoritative snapshot);
+    // do NOT set it here as well — that double-creation discards any objects we'd reference.
+    // Fallback: if for some reason myField is absent, add the card individually.
+    if (!data.myField && data.card) {
       gs.opp.field.push(netCardToFieldMinion(data.card));
     }
     if (data.handCount != null) {
@@ -2006,6 +2006,7 @@
         atkDivinePopped: actualDmgToAttacker === 0 && defDmg > 0,
         defDivinePopped: actualDmgToDefender === 0 && atkDmg > 0,
         atkSleeping: attacker.sleeping,
+        myField: gs.me.field.map(minionToNetCard),
       });
 
       if (defRect && actualDmgToDefender > 0) showDmgPopup(defRect.left + defRect.width / 2, defRect.top + defRect.height / 2, -actualDmgToDefender);
@@ -2017,7 +2018,7 @@
       gs.opp.hp -= atkDmg;
       attacker.attacksLeft = (attacker.attacksLeft || 1) - 1;
       attacker.sleeping = (attacker.attacksLeft <= 0);
-      sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: atkDmg, atkSleeping: attacker.sleeping });
+      sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: atkDmg, atkSleeping: attacker.sleeping, myField: gs.me.field.map(minionToNetCard) });
       if (hRect) showDmgPopup(hRect.left + hRect.width / 2, hRect.top + hRect.height / 2, -atkDmg);
     }
 
@@ -2033,26 +2034,34 @@
 
   function receiveAttack(data) {
     if (data.targetType === 'minion') {
-      var theirMinion = gs.opp.field[data.attackerIdx];
-      var ourMinion   = gs.me.field[data.targetIdx];
-      var theirEl   = theirMinion ? $oppField.querySelector('.minion[data-idx="' + data.attackerIdx + '"]') : null;
-      var ourEl     = ourMinion   ? $myField.querySelector('.minion[data-idx="' + data.targetIdx + '"]')   : null;
+      // Capture DOM positions before any state changes so popups land correctly
+      var theirEl   = $oppField.querySelector('.minion[data-idx="' + data.attackerIdx + '"]');
+      var ourEl     = $myField.querySelector('.minion[data-idx="' + data.targetIdx + '"]');
       var theirRect = theirEl ? theirEl.getBoundingClientRect() : null;
       var ourRect   = ourEl   ? ourEl.getBoundingClientRect()   : null;
 
-      if (theirMinion) {
-        theirMinion.sleeping = data.atkSleeping != null ? data.atkSleeping : true;
-        theirMinion.hp = data.atkHp != null ? data.atkHp : theirMinion.hp - (data.defAtk || 0);
-        if (data.atkDivinePopped) theirMinion.divineShield = false;
+      // Rebuild opponent field from authoritative snapshot when available;
+      // this also corrects any index desync from prior missed/reordered messages.
+      if (data.myField) {
+        gs.opp.field = data.myField.map(netCardToFieldMinion);
+      } else {
+        // Fallback: patch individual minion by index
+        var theirMinion = gs.opp.field[data.attackerIdx];
+        if (theirMinion) {
+          theirMinion.sleeping = data.atkSleeping != null ? data.atkSleeping : true;
+          theirMinion.hp = data.atkHp != null ? data.atkHp : theirMinion.hp - (data.defAtk || 0);
+          if (data.atkDivinePopped) theirMinion.divineShield = false;
+          if (theirMinion.hp <= 0 && minionHas(theirMinion, 'Reborn')) { theirMinion.hp = 1; theirMinion.maxHp = 1; }
+        }
       }
+
+      // Always update our own minion by index (we are authoritative over our own field)
+      var ourMinion = gs.me.field[data.targetIdx];
       if (ourMinion) {
         ourMinion.hp = data.defHpAfter != null ? data.defHpAfter : ourMinion.hp - (data.atkAtk || 0);
         if (data.defDivinePopped) ourMinion.divineShield = false;
+        if (ourMinion.hp <= 0 && minionHas(ourMinion, 'Reborn')) { ourMinion.hp = 1; ourMinion.maxHp = 1; }
       }
-
-      // Reborn
-      if (theirMinion && theirMinion.hp <= 0 && minionHas(theirMinion, 'Reborn')) { theirMinion.hp = 1; theirMinion.maxHp = 1; }
-      if (ourMinion   && ourMinion.hp   <= 0 && minionHas(ourMinion, 'Reborn'))   { ourMinion.hp   = 1; ourMinion.maxHp   = 1; }
 
       gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
       gs.me.field  = gs.me.field.filter(function (m) { return m.hp > 0; });
@@ -2062,6 +2071,15 @@
     } else if (data.targetType === 'hero') {
       var heroEl   = document.getElementById('my-hero');
       var heroRect = heroEl ? heroEl.getBoundingClientRect() : null;
+      // Sync opponent field so the attacker's sleeping state is reflected
+      if (data.myField) {
+        gs.opp.field = data.myField.map(netCardToFieldMinion);
+      } else {
+        var theirMinion = gs.opp.field[data.attackerIdx];
+        if (theirMinion) {
+          theirMinion.sleeping = data.atkSleeping != null ? data.atkSleeping : true;
+        }
+      }
       gs.me.hp -= (data.atkAtk || 0);
       if (heroRect && data.atkAtk) showDmgPopup(heroRect.left + heroRect.width / 2, heroRect.top + heroRect.height / 2, -data.atkAtk);
     }
