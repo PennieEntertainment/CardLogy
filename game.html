@@ -1492,8 +1492,13 @@
       }
       // Guest-ready ACK received by host — host can now start turn 1
       if (msg.type === 'guest-ready') {
-        myRole = 'host'; // authoritative: receiver of guest-ready is always the host
-        onGuestReady();
+        // Only change role if we are actually in the handshake phase waiting for this.
+        // Ignoring MQTT echoes or stale messages prevents the guest from accidentally
+        // setting myRole to 'host', which would make both players think they are guests.
+        if (_hostTurnPending) {
+          myRole = 'host'; // authoritative: receiver of guest-ready is always the host
+          onGuestReady();
+        }
         return;
       }
       // Ignore retained lobby messages (announce, bye, start, etc.)
@@ -1886,8 +1891,9 @@
     if (!isMyTurn() || gs.gameOver) return;
     stopRope();
 
-    // Send to opponent
-    sendNet({ action: 'end-turn', turn: gs.turn });
+    // Send to opponent — include our role so the receiver does not depend on its
+    // own myRole (which could be stale) to decide whose turn comes next.
+    sendNet({ action: 'end-turn', turn: gs.turn, from: myRole });
 
     gs.turn += 1;
     startTurn(myRole === 'host' ? 'guest' : 'host');
@@ -1895,7 +1901,12 @@
 
   function receiveEndTurn(data) {
     gs.turn = (data.turn || gs.turn) + 1;
-    startTurn(myRole); // now it's our turn
+    // Derive whose turn it is from the sender's role so this is independent of
+    // any local myRole corruption that caused the "both opponent's turns" bug.
+    var nextRole = data.from === 'host' ? 'guest'
+                 : data.from === 'guest' ? 'host'
+                 : myRole; // fallback for older clients that omit 'from'
+    startTurn(nextRole);
   }
 
   // ─── Play a card from hand ────────────────────────────────────
