@@ -782,6 +782,70 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.7);
     }
 
+    /* ─── Divine Shield ────────────────────────────────────── */
+    .minion.has-divine-shield {
+      box-shadow: 0 0 0 2px #e0e8ff, 0 0 14px rgba(180,210,255,0.85), 0 2px 8px rgba(0,0,0,0.6);
+    }
+
+    /* ─── Silenced ─────────────────────────────────────────── */
+    .minion.silenced {
+      filter: grayscale(0.65);
+    }
+
+    /* ─── Buffed ATK ───────────────────────────────────────── */
+    .minion .m-atk.buffed { background: radial-gradient(circle at 33% 28%, #aaffaa, #22a022 52%, #0a5010); border-color: #88ff88; }
+
+    /* ─── Targeting mode ───────────────────────────────────── */
+    body.targeting-mode { cursor: default; }
+    .valid-target {
+      cursor: crosshair !important;
+      animation: pulse-valid 0.8s ease-in-out infinite;
+    }
+    @keyframes pulse-valid {
+      0%, 100% { box-shadow: 0 0 0 2px #4ade80, 0 0 10px rgba(74,222,128,0.5); }
+      50%       { box-shadow: 0 0 0 3px #4ade80, 0 0 20px rgba(74,222,128,0.9); }
+    }
+    body.targeting-mode .card-in-hand:not(.pending-play) {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .card-in-hand.pending-play {
+      opacity: 1 !important;
+      box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(232,184,75,0.6) !important;
+    }
+    #targeting-hint {
+      display: none;
+      position: fixed;
+      bottom: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      padding: 7px 18px;
+      font-size: 0.82rem;
+      color: var(--gold2);
+      z-index: 200;
+      pointer-events: none;
+      white-space: nowrap;
+      letter-spacing: 0.04em;
+    }
+    body.targeting-mode #targeting-hint { display: block; }
+    #opp-hero.valid-target {
+      cursor: crosshair !important;
+      animation: pulse-valid 0.8s ease-in-out infinite;
+    }
+
+    /* ─── Taunt indicator ───────────────────────────────────── */
+    .minion.has-taunt {
+      box-shadow: 0 0 0 2px #e8b84b, 0 0 10px rgba(232,184,75,0.55), 0 2px 8px rgba(0,0,0,0.6);
+    }
+    .minion.has-taunt .m-badge {
+      background: #3a2a00;
+      border-color: #e8b84b;
+      color: #f5d07a;
+    }
+
     /* ─── Center Divider ────────────────────────────────────── */
     .center-bar {
       flex-shrink: 0;
@@ -1246,6 +1310,8 @@
   </div>
 </div>
 
+<div id="targeting-hint">Choose a target — press Esc to cancel</div>
+
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 (function () {
@@ -1290,6 +1356,11 @@
   // Host always goes first
   var amFirst = (myRole === 'host');
 
+  // ─── Keyword / targeting state ────────────────────────────
+  var allCards      = [];  // populated from cards.json fetch
+  var pendingPlay   = null;  // { card, handIdx } while waiting for a target click
+  var pendingTargetMode = null; // 'any-minion' | 'friendly-minion' | 'enemy-minion'
+
   // ─── Build deck from localStorage when not supplied by lobby ──
   function buildDeckFromStorage() {
     var RACE_EMOJI_MAP = {
@@ -1312,6 +1383,7 @@
       .then(function (r) { return r.ok ? r.json() : []; })
       .catch(function () { return []; })
       .then(function (cards) {
+        allCards = cards; // store globally for effect resolution
         var deck = [];
         Object.keys(deckMap).forEach(function (id) {
           var count = deckMap[id] || 0;
@@ -1439,25 +1511,16 @@
   function handleNetMsg(data) {
     if (!data || !data.action) return;
     switch (data.action) {
-      case 'end-turn':
-        receiveEndTurn(data);
-        break;
-      case 'play-minion':
-        receivePlayMinion(data);
-        break;
-      case 'attack':
-        receiveAttack(data);
-        break;
-      case 'sync':
-        receiveSyncOpp(data);
-        break;
+      case 'end-turn':    receiveEndTurn(data);    break;
+      case 'play-minion': receivePlayMinion(data); break;
+      case 'play-spell':  receiveCardEffect(data); break;
+      case 'field-sync':  receiveFieldSync(data);  break;
+      case 'attack':      receiveAttack(data);     break;
+      case 'sync':        receiveSyncOpp(data);    break;
     }
   }
 
-  function receiveSyncOpp(data) {
-    // Placeholder — future full-state sync can be added here
-    if (!data) return;
-  }
+  function receiveSyncOpp(data) { if (!data) return; }
 
   // ─── Dummy deck (placeholder until real cards are ready) ──
   function makeDummyDeck() {
@@ -1544,12 +1607,18 @@
     var total = gs.me.hand.length;
     gs.me.hand.forEach(function (card, idx) {
       var el = document.createElement('div');
+      var isPendingCard = pendingPlay && pendingPlay.handIdx === idx;
       el.className = 'card-in-hand card-playable type-' + (card.type || 'minion') + (card.rarity ? ' rarity-' + card.rarity : '');
-      var affordable = card.cost <= gs.me.mana && isMyTurn() && gs.me.field.length < MAX_FIELD_SIZE;
-      if (affordable) el.classList.add('can-play');
-      else            el.classList.add('cannot-play');
+      if (isPendingCard) {
+        el.classList.add('pending-play');
+      } else {
+        var canPlayNow = !pendingPlay && card.cost <= gs.me.mana && isMyTurn() && !gs.gameOver;
+        if (card.type === 'minion') canPlayNow = canPlayNow && gs.me.field.length < MAX_FIELD_SIZE;
+        if (canPlayNow) el.classList.add('can-play');
+        else            el.classList.add('cannot-play');
+      }
 
-      // Fan / arc effect — cards spread from center of hand
+      // Fan / arc effect
       if (total > 1) {
         var center   = (total - 1) / 2;
         var offset   = idx - center;
@@ -1573,7 +1642,8 @@
           : '');
 
       el.dataset.idx = idx;
-      if (affordable) {
+      if (!pendingPlay && card.cost <= gs.me.mana && isMyTurn() && !gs.gameOver &&
+          (card.type !== 'minion' || gs.me.field.length < MAX_FIELD_SIZE)) {
         el.addEventListener('click', function () { onPlayCard(+this.dataset.idx); });
       }
       el.addEventListener('mouseenter', function (e) { showTooltip(e, card); });
@@ -1592,32 +1662,52 @@
   }
 
   function renderField(fieldEl, emptyMsg, minions, isOpp) {
-    // Remove all minion nodes but keep hint + empty msg
     Array.from(fieldEl.querySelectorAll('.minion')).forEach(function (m) { m.remove(); });
     var emptyEl = fieldEl.querySelector('.field-empty-msg');
     if (emptyEl) emptyEl.style.display = minions.length ? 'none' : '';
 
     minions.forEach(function (minion, idx) {
-      var el = document.createElement('div');
+      var el  = document.createElement('div');
       var cls = 'minion';
-      if (minion.sleeping) cls += ' sleeping';
-      if (!isOpp && !minion.sleeping && isMyTurn()) cls += ' can-attack';
-      if (!isOpp && attackingMinionIdx === idx) cls += ' attacking';
-      if (isOpp && attackingMinionIdx !== null && isMyTurn() && !gs.gameOver) cls += ' targetable';
+      if (minion.silenced)     cls += ' silenced';
+      if (minion.divineShield) cls += ' has-divine-shield';
+
+      if (pendingPlay) {
+        // Targeting mode — determine if this minion is a valid target
+        var valid = false;
+        if (pendingTargetMode === 'any-minion')      valid = true;
+        if (pendingTargetMode === 'friendly-minion' && !isOpp) valid = true;
+        if (pendingTargetMode === 'enemy-minion'    && isOpp)  valid = true;
+        if (valid) cls += ' valid-target';
+      } else {
+        if (minion.sleeping)  cls += ' sleeping';
+        if (!isOpp && !minion.sleeping && isMyTurn() && !gs.gameOver) cls += ' can-attack';
+        if (!isOpp && attackingMinionIdx === idx) cls += ' attacking';
+        if (!minion.silenced && minionHas(minion, 'Taunt')) cls += ' has-taunt';
+        if (isOpp && attackingMinionIdx !== null && isMyTurn() && !gs.gameOver) {
+          var tauntExists = gs.opp.field.some(function (m) { return minionHas(m, 'Taunt'); });
+          if (!tauntExists || minionHas(minion, 'Taunt')) cls += ' targetable';
+        }
+      }
+
       if (minion.rarity) cls += ' rarity-' + minion.rarity;
-      if (minion.type)   cls += ' type-' + minion.type;
-      el.className = cls;
+      el.className   = cls;
       el.dataset.idx = idx;
+
+      // Effective ATK (Milo aura only applies to my field)
+      var dispAtk = (!isOpp) ? getEffectiveAtk(minion, gs.me.field) : minion.atk;
+      var buffed  = dispAtk > minion.atk;
+
       var mArtHtml = minion.picture
         ? '<img src="' + esc(minion.picture) + '" alt="" style="width:100%;height:100%;object-fit:cover;object-position:' + (minion.picX || 50) + '% ' + (minion.picY || 50) + '%">'
         : (minion.emoji || '⚔️');
       el.innerHTML =
         '<div class="minion-art">' + mArtHtml + '</div>' +
         '<div class="m-name">' + esc(minion.name) + '</div>' +
-        '<div class="m-atk"><span>' + minion.atk + '</span></div>' +
+        '<div class="m-atk' + (buffed ? ' buffed' : '') + '"><span>' + dispAtk + '</span></div>' +
         '<div class="m-hp' + (minion.hp < minion.maxHp ? ' damaged' : '') + '">' + minion.hp + '</div>';
 
-      if (minion.keywords && minion.keywords.length) {
+      if (!minion.silenced && minion.keywords && minion.keywords.length) {
         var statusEl = document.createElement('div');
         statusEl.className = 'm-status';
         minion.keywords.forEach(function (kw) {
@@ -1629,12 +1719,22 @@
         el.appendChild(statusEl);
       }
 
-      if (!isOpp && !minion.sleeping && isMyTurn()) {
-        el.addEventListener('click', function () { onMinionAttack(+this.dataset.idx); });
+      if (pendingPlay) {
+        var valid2 = (pendingTargetMode === 'any-minion') ||
+                     (pendingTargetMode === 'friendly-minion' && !isOpp) ||
+                     (pendingTargetMode === 'enemy-minion'   && isOpp);
+        if (valid2) {
+          el.addEventListener('click', function () { onTargetSelected(isOpp ? 'opp' : 'me', +this.dataset.idx); });
+        }
+      } else {
+        if (!isOpp && !minion.sleeping && isMyTurn() && !gs.gameOver) {
+          el.addEventListener('click', function () { onMinionAttack(+this.dataset.idx); });
+        }
+        if (isOpp) {
+          el.addEventListener('click', function () { onAttackTarget('minion', +this.dataset.idx); });
+        }
       }
-      if (isOpp) {
-        el.addEventListener('click', function () { onAttackTarget('minion', +this.dataset.idx); });
-      }
+
       el.addEventListener('mouseenter', function (e) { showTooltip(e, minion); });
       el.addEventListener('mouseleave', hideTooltip);
       fieldEl.appendChild(el);
@@ -1650,15 +1750,18 @@
     renderManaBar($oppManaBar, $oppManaText, gs.opp.mana, gs.opp.maxMana);
     renderHand();
     renderOppHand();
-    renderField($myField,  null,     gs.me.field,  false);
-    renderField($oppField, null,     gs.opp.field, true);
-    // Highlight opp hero as attackable when we have selected an attacker
-    document.getElementById('opp-hero').classList.toggle('attackable', attackingMinionIdx !== null && isMyTurn() && !gs.gameOver);
+    renderField($myField,  null, gs.me.field,  false);
+    renderField($oppField, null, gs.opp.field, true);
+    // Hero attack target indicator — blocked by Taunt
+    var oppHasTaunt = gs.opp.field.some(function (m) { return minionHas(m, 'Taunt'); });
+    var heroTargetable = attackingMinionIdx !== null && isMyTurn() && !gs.gameOver && !oppHasTaunt && !pendingPlay;
+    document.getElementById('opp-hero').classList.toggle('attackable', heroTargetable);
+    document.getElementById('opp-hero').classList.toggle('valid-target', !!pendingPlay);
     $myDeckCount.textContent  = gs.me.deckCount;
     $oppDeckCount.textContent = gs.opp.deckCount;
 
     var myTurn = isMyTurn();
-    $endTurnBtn.disabled = !myTurn || gs.gameOver || !_initStarted;
+    $endTurnBtn.disabled = !myTurn || gs.gameOver || !_initStarted || !!pendingPlay;
 
     if (myTurn) {
       $turnIndicator.textContent = 'Your Turn';
@@ -1743,11 +1846,17 @@
     state.maxMana = Math.min(state.maxMana + 1, MAX_MANA);
     state.mana = state.maxMana;
 
-    // Wake sleeping minions
+    // Wake sleeping minions + refresh attacksLeft (Windfury gets 2, others get 1)
     if (isMe) {
-      gs.me.field.forEach(function (m) { m.sleeping = false; });
+      gs.me.field.forEach(function (m) {
+        m.sleeping    = false;
+        m.attacksLeft = minionHas(m, 'Windfury') ? 2 : 1;
+      });
     } else {
-      gs.opp.field.forEach(function (m) { m.sleeping = false; });
+      gs.opp.field.forEach(function (m) {
+        m.sleeping    = false;
+        m.attacksLeft = minionHas(m, 'Windfury') ? 2 : 1;
+      });
     }
 
     // Draw a card
@@ -1791,57 +1900,31 @@
 
   // ─── Play a card from hand ────────────────────────────────────
   function onPlayCard(idx) {
+    if (pendingPlay) return;
     if (!isMyTurn() || gs.gameOver) return;
     var card = gs.me.hand[idx];
     if (!card) return;
     if (card.cost > gs.me.mana) return;
     if (card.type === 'minion' && gs.me.field.length >= MAX_FIELD_SIZE) return;
-
-    gs.me.mana -= card.cost;
-    gs.me.hand.splice(idx, 1);
-
-    if (card.type === 'minion') {
-      var minionOnField = {
-        id: card.id + '_' + Date.now(),
-        name: card.name,
-        atk: card.atk,
-        hp: card.hp,
-        maxHp: card.hp,
-        emoji: card.emoji || '⚔️',
-        picture: card.picture || null,
-        picX: card.picX != null ? card.picX : 50,
-        picY: card.picY != null ? card.picY : 50,
-        desc: card.desc || '',
-        keywords: parseKeywords(card.desc || ''),
-        sleeping: true, // summoning sickness
-      };
-      gs.me.field.push(minionOnField);
-      sendNet({ action: 'play-minion', card: { name: card.name, atk: card.atk, hp: card.hp, emoji: card.emoji, picture: card.picture || null, picX: card.picX, picY: card.picY, desc: card.desc } });
-    }
-
-    renderAll();
+    var targetMode = getTargetMode(card);
+    if (targetMode) { enterTargeting(card, idx); return; }
+    executePlay(card, idx, null);
   }
 
   function receivePlayMinion(data) {
     if (!data.card) return;
-    var m = {
-      id: 'opp_' + Date.now(),
-      name: data.card.name,
-      atk: data.card.atk,
-      hp: data.card.hp,
-      maxHp: data.card.hp,
-      emoji: data.card.emoji || '⚔️',
-      picture: data.card.picture || null,
-      picX: data.card.picX != null ? data.card.picX : 50,
-      picY: data.card.picY != null ? data.card.picY : 50,
-      desc: data.card.desc || '',
-      keywords: parseKeywords(data.card.desc || ''),
-      sleeping: true,
-    };
-    gs.opp.field.push(m);
-    // Remove from opponent's simulated hand
-    if (gs.opp.hand.length > 0) gs.opp.hand.pop();
-    renderAll();
+    if (data.myField) {
+      gs.opp.field = data.myField.map(netCardToFieldMinion);
+    } else {
+      gs.opp.field.push(netCardToFieldMinion(data.card));
+    }
+    if (data.handCount != null) {
+      var hc = Math.max(0, Math.min(10, data.handCount));
+      gs.opp.hand = new Array(hc).fill(0).map(function () { return { id:'opp_hidden' }; });
+    } else if (gs.opp.hand.length > 0) {
+      gs.opp.hand.pop();
+    }
+    receiveCardEffect(data);
   }
 
   // ─── Attack flow ─────────────────────────────────────────────
@@ -1861,49 +1944,70 @@
     var attacker = gs.me.field[attackingMinionIdx];
     if (!attacker) { attackingMinionIdx = null; return; }
 
-    // Capture screen positions before DOM re-render
+    // Taunt enforcement
+    var tauntMinions = gs.opp.field.filter(function (m) { return minionHas(m, 'Taunt'); });
+    if (tauntMinions.length > 0) {
+      if (targetType === 'hero') { attackingMinionIdx = null; renderAll(); return; }
+      var tgt = gs.opp.field[targetIdx];
+      if (!tgt || !minionHas(tgt, 'Taunt')) { attackingMinionIdx = null; renderAll(); return; }
+    }
+
     var atkEl   = $myField.querySelector('.minion[data-idx="' + attackingMinionIdx + '"]');
     var atkRect = atkEl ? atkEl.getBoundingClientRect() : null;
-
-    var dmgToOpp, dmgToAtk;
 
     if (targetType === 'minion') {
       var defender = gs.opp.field[targetIdx];
       if (!defender) { attackingMinionIdx = null; return; }
-      dmgToOpp = attacker.atk;
-      dmgToAtk = defender.atk;
+
+      // Effective ATK values (Milo aura)
+      var atkDmg = getEffectiveAtk(attacker, gs.me.field);
+      var defDmg = getEffectiveAtk(defender, gs.opp.field);
 
       var defEl   = $oppField.querySelector('.minion[data-idx="' + targetIdx + '"]');
       var defRect = defEl ? defEl.getBoundingClientRect() : null;
 
-      defender.hp -= attacker.atk;
-      attacker.hp -= defender.atk;
-      attacker.sleeping = true; // used attack
+      // Divine Shield absorption
+      var actualDmgToDefender = atkDmg;
+      var actualDmgToAttacker = defDmg;
+      if (defender.divineShield && atkDmg > 0) { defender.divineShield = false; actualDmgToDefender = 0; }
+      if (attacker.divineShield && defDmg > 0) { attacker.divineShield = false; actualDmgToAttacker = 0; }
 
-      // Remove dead minions
-      gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
+      defender.hp -= actualDmgToDefender;
+      attacker.hp -= actualDmgToAttacker;
+
+      // Windfury: decrement attacks, only sleep when exhausted
+      attacker.attacksLeft = (attacker.attacksLeft || 1) - 1;
+      attacker.sleeping = (attacker.attacksLeft <= 0);
+
+      // Reborn
+      if (attacker.hp <= 0 && minionHas(attacker, 'Reborn')) { attacker.hp = 1; attacker.maxHp = 1; }
+      if (defender.hp <= 0 && minionHas(defender, 'Reborn')) { defender.hp = 1; defender.maxHp = 1; }
+
+      var deadMy  = gs.me.field.filter(function (m) { return m.hp <= 0; });
+      var deadOpp = gs.opp.field.filter(function (m) { return m.hp <= 0; });
       gs.me.field  = gs.me.field.filter(function (m) { return m.hp > 0; });
+      gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
+      deadMy.forEach(resolveDeathrattle);
 
       sendNet({
-        action: 'attack',
-        attackerIdx: attackingMinionIdx,
-        targetType: 'minion',
-        targetIdx: targetIdx,
-        atkAtk: attacker.atk,
-        atkHp: attacker.hp,
-        defAtk: defender.atk,
-        defHpAfter: defender.hp
+        action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'minion', targetIdx: targetIdx,
+        atkAtk: atkDmg, atkHp: attacker.hp, defAtk: defDmg, defHpAfter: defender.hp,
+        atkDivinePopped: actualDmgToAttacker === 0 && defDmg > 0,
+        defDivinePopped: actualDmgToDefender === 0 && atkDmg > 0,
+        atkSleeping: attacker.sleeping,
       });
 
-      if (defRect) showDmgPopup(defRect.left + defRect.width / 2, defRect.top + defRect.height / 2, -dmgToOpp);
-      if (atkRect && dmgToAtk > 0) showDmgPopup(atkRect.left + atkRect.width / 2, atkRect.top + atkRect.height / 2, -dmgToAtk);
+      if (defRect && actualDmgToDefender > 0) showDmgPopup(defRect.left + defRect.width / 2, defRect.top + defRect.height / 2, -actualDmgToDefender);
+      if (atkRect && actualDmgToAttacker > 0) showDmgPopup(atkRect.left + atkRect.width / 2, atkRect.top + atkRect.height / 2, -actualDmgToAttacker);
     } else if (targetType === 'hero') {
+      var atkDmg = getEffectiveAtk(attacker, gs.me.field);
       var hEl   = document.getElementById('opp-hero');
       var hRect = hEl ? hEl.getBoundingClientRect() : null;
-      gs.opp.hp -= attacker.atk;
-      attacker.sleeping = true;
-      sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: attacker.atk });
-      if (hRect) showDmgPopup(hRect.left + hRect.width / 2, hRect.top + hRect.height / 2, -attacker.atk);
+      gs.opp.hp -= atkDmg;
+      attacker.attacksLeft = (attacker.attacksLeft || 1) - 1;
+      attacker.sleeping = (attacker.attacksLeft <= 0);
+      sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: atkDmg, atkSleeping: attacker.sleeping });
+      if (hRect) showDmgPopup(hRect.left + hRect.width / 2, hRect.top + hRect.height / 2, -atkDmg);
     }
 
     attackingMinionIdx = null;
@@ -1913,31 +2017,35 @@
 
   // Allow clicking opponent hero to attack
   document.getElementById('opp-hero').addEventListener('click', function () {
-    if (attackingMinionIdx !== null) onAttackTarget('hero', null);
-  });
-
-  // Cancel pending attack with Escape key or by clicking the board background
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && attackingMinionIdx !== null) {
-      attackingMinionIdx = null;
-      renderAll();
-    }
+    if (attackingMinionIdx !== null && !pendingPlay) onAttackTarget('hero', null);
   });
 
   function receiveAttack(data) {
     if (data.targetType === 'minion') {
       var theirMinion = gs.opp.field[data.attackerIdx];
       var ourMinion   = gs.me.field[data.targetIdx];
-      // Capture positions before DOM changes
       var theirEl   = theirMinion ? $oppField.querySelector('.minion[data-idx="' + data.attackerIdx + '"]') : null;
       var ourEl     = ourMinion   ? $myField.querySelector('.minion[data-idx="' + data.targetIdx + '"]')   : null;
       var theirRect = theirEl ? theirEl.getBoundingClientRect() : null;
       var ourRect   = ourEl   ? ourEl.getBoundingClientRect()   : null;
-      // Use the authoritative HP values sent by the attacker's client
-      if (theirMinion) { theirMinion.sleeping = true; theirMinion.hp = data.atkHp != null ? data.atkHp : theirMinion.hp - (data.defAtk || 0); }
-      if (ourMinion)   { ourMinion.hp = data.defHpAfter != null ? data.defHpAfter : ourMinion.hp - (data.atkAtk || 0); }
+
+      if (theirMinion) {
+        theirMinion.sleeping = data.atkSleeping != null ? data.atkSleeping : true;
+        theirMinion.hp = data.atkHp != null ? data.atkHp : theirMinion.hp - (data.defAtk || 0);
+        if (data.atkDivinePopped) theirMinion.divineShield = false;
+      }
+      if (ourMinion) {
+        ourMinion.hp = data.defHpAfter != null ? data.defHpAfter : ourMinion.hp - (data.atkAtk || 0);
+        if (data.defDivinePopped) ourMinion.divineShield = false;
+      }
+
+      // Reborn
+      if (theirMinion && theirMinion.hp <= 0 && minionHas(theirMinion, 'Reborn')) { theirMinion.hp = 1; theirMinion.maxHp = 1; }
+      if (ourMinion   && ourMinion.hp   <= 0 && minionHas(ourMinion, 'Reborn'))   { ourMinion.hp   = 1; ourMinion.maxHp   = 1; }
+
       gs.opp.field = gs.opp.field.filter(function (m) { return m.hp > 0; });
       gs.me.field  = gs.me.field.filter(function (m) { return m.hp > 0; });
+
       if (ourRect   && data.atkAtk) showDmgPopup(ourRect.left   + ourRect.width   / 2, ourRect.top   + ourRect.height   / 2, -data.atkAtk);
       if (theirRect && data.defAtk) showDmgPopup(theirRect.left + theirRect.width / 2, theirRect.top + theirRect.height / 2, -data.defAtk);
     } else if (data.targetType === 'hero') {
@@ -1994,6 +2102,17 @@
   // ─── End Turn Button ─────────────────────────────────────────
   $endTurnBtn.addEventListener('click', endTurn);
 
+  // Cancel targeting with Escape (also cancels pending attack)
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (pendingPlay) { cancelTargeting(); return; }
+      if (attackingMinionIdx !== null) { attackingMinionIdx = null; renderAll(); }
+      if (document.getElementById('modalOverlay') && document.getElementById('modalOverlay').classList.contains('open')) {
+        document.getElementById('modalOverlay').classList.remove('open');
+      }
+    }
+  });
+
   // ─── Utilities ───────────────────────────────────────────────
   function esc(str) {
     return String(str)
@@ -2004,8 +2123,321 @@
   }
 
   function parseKeywords(desc) {
-    var kws = ['Taunt', 'Charge', 'Divine Shield', 'Lifesteal', 'Poisonous', 'Windfury', 'Reborn', 'Stealth', 'Rush'];
+    var kws = ['Taunt', 'Charge', 'Divine Shield', 'Lifesteal', 'Poisonous', 'Windfury', 'Reborn', 'Stealth', 'Rush', 'Deathrattle', 'Battlecry', 'Silence'];
     return kws.filter(function (k) { return desc.toLowerCase().includes(k.toLowerCase()); });
+  }
+
+  function hasKeyword(keywordsArr, desc, kw) {
+    var k = kw.toLowerCase();
+    if (keywordsArr && keywordsArr.some(function (x) { return x.toLowerCase() === k; })) return true;
+    return (desc || '').toLowerCase().includes(k);
+  }
+
+  function minionHas(m, kw) {
+    if (m.silenced) return false;
+    return hasKeyword(m.keywords, m.desc, kw);
+  }
+
+  function getEffectiveAtk(minion, ownerField) {
+    if (minion.silenced) return minion.atk;
+    var bonus = 0;
+    ownerField.forEach(function (m) {
+      if (m !== minion && !m.silenced && m.cardId === 'mnhoh07jcmrib') bonus += 2;
+    });
+    return minion.atk + bonus;
+  }
+
+  // ─── Minion object helpers ────────────────────────────────────
+  function createMinionFromCard(card) {
+    var kw = (card.keywords && card.keywords.length) ? card.keywords.slice() : parseKeywords(card.desc || '');
+    var hasDS  = hasKeyword(kw, card.desc, 'Divine Shield');
+    var hasWF  = hasKeyword(kw, card.desc, 'Windfury');
+    var hasChg = hasKeyword(kw, card.desc, 'Charge') || hasKeyword(kw, card.desc, 'Rush');
+    return {
+      id:          (card.id || card.cardId || 'gen') + '_' + Date.now() + Math.random().toString(36).slice(2,5),
+      cardId:      card.id || card.cardId || '',
+      name:        card.name || 'Unknown',
+      atk:         card.atk  != null ? card.atk  : (card.attack  || 0),
+      hp:          card.hp   != null ? card.hp   : (card.defense || 1),
+      maxHp:       card.hp   != null ? card.hp   : (card.defense || 1),
+      cost:        card.cost != null ? card.cost : (card.manaCost || 0),
+      emoji:       card.emoji || '⚔️',
+      picture:     card.picture  || null,
+      picX:        card.picX  != null ? card.picX  : 50,
+      picY:        card.picY  != null ? card.picY  : 50,
+      desc:        card.desc  || card.description || '',
+      race:        card.race  || '',
+      rarity:      card.rarity || 'common',
+      type:        card.type  || card.cardType || 'minion',
+      keywords:    kw,
+      sleeping:    !hasChg,
+      divineShield: hasDS,
+      attacksLeft: hasWF ? 2 : 1,
+      silenced:    false,
+    };
+  }
+
+  function createMinionFromTemplate(cardId) {
+    var tmpl = allCards.find(function (c) { return c.id === cardId; });
+    if (!tmpl) return null;
+    return createMinionFromCard({
+      id: tmpl.id, name: tmpl.name,
+      atk: tmpl.attack || 0, hp: tmpl.defense || 1, cost: tmpl.manaCost || 0,
+      desc: tmpl.description || '', race: tmpl.race || '',
+      keywords: tmpl.keywords || [], picture: tmpl.picture || null,
+      picX: tmpl.picX, picY: tmpl.picY, rarity: tmpl.rarity,
+    });
+  }
+
+  function minionToNetCard(m) {
+    return {
+      cardId: m.cardId, name: m.name, atk: m.atk, hp: m.hp, maxHp: m.maxHp,
+      cost: m.cost, emoji: m.emoji, picture: m.picture || null,
+      picX: m.picX, picY: m.picY, desc: m.desc, race: m.race,
+      rarity: m.rarity, keywords: m.keywords, sleeping: m.sleeping,
+      divineShield: m.divineShield, attacksLeft: m.attacksLeft, silenced: m.silenced,
+    };
+  }
+
+  function netCardToFieldMinion(c) {
+    return {
+      id: 'opp_' + Date.now() + Math.random().toString(36).slice(2,5),
+      cardId: c.cardId || '', name: c.name, atk: c.atk || 0,
+      hp: c.hp || 1, maxHp: c.maxHp || c.hp || 1, cost: c.cost || 0,
+      emoji: c.emoji || '⚔️', picture: c.picture || null,
+      picX: c.picX != null ? c.picX : 50, picY: c.picY != null ? c.picY : 50,
+      desc: c.desc || '', race: c.race || '', rarity: c.rarity || 'common',
+      keywords: c.keywords || [], sleeping: !!c.sleeping,
+      divineShield: !!c.divineShield, attacksLeft: c.attacksLeft || 1,
+      silenced: !!c.silenced,
+    };
+  }
+
+  function fieldMinionToHandCard(m) {
+    return {
+      id: m.cardId || m.id, name: m.name, cost: m.cost || 0,
+      atk: m.atk, hp: m.maxHp, type: m.type || 'minion',
+      desc: m.desc, race: m.race, keywords: m.keywords || [],
+      picture: m.picture || null, picX: m.picX, picY: m.picY,
+      rarity: m.rarity, emoji: m.emoji || '⚔️',
+    };
+  }
+
+  // ─── Keyword effect helpers ────────────────────────────────────
+  function applySilence(m) { m.silenced = true; m.keywords = []; m.divineShield = false; }
+  function applyDivineShield(m) { m.divineShield = true; }
+
+  function addKeyword(m, kw) {
+    if (!m.keywords) m.keywords = [];
+    if (!m.keywords.includes(kw)) m.keywords.push(kw);
+  }
+
+  function getTargetMinion(target) {
+    if (!target) return null;
+    var field = (target.owner === 'me') ? gs.me.field : gs.opp.field;
+    return field[target.idx] || null;
+  }
+
+  function sendFieldSync() {
+    sendNet({ action: 'field-sync', field: gs.me.field.map(minionToNetCard), handCount: gs.me.hand.length });
+  }
+
+  // ─── Deck effect helpers ──────────────────────────────────────
+  function summonOrDrawByRace(race, count, toField) {
+    var raceL = race.toLowerCase();
+    var spawned = 0;
+    for (var i = 0; i < gs.me.deck.length && spawned < count; i++) {
+      if ((gs.me.deck[i].race || '').toLowerCase() === raceL) {
+        var card = gs.me.deck.splice(i, 1)[0]; i--;
+        gs.me.deckCount = Math.max(0, gs.me.deckCount - 1);
+        spawned++;
+        if (toField && gs.me.field.length < MAX_FIELD_SIZE) {
+          gs.me.field.push(createMinionFromCard(card));
+        } else if (!toField && gs.me.hand.length < 10) {
+          gs.me.hand.push(card);
+        }
+      }
+    }
+    if (spawned < count && allCards.length) {
+      var templates = allCards.filter(function (c) {
+        return c.cardType === 'minion' && (c.race || '').toLowerCase() === raceL;
+      });
+      while (spawned < count && templates.length) {
+        var tmpl = templates[Math.floor(Math.random() * templates.length)];
+        spawned++;
+        var handCard = {
+          id: tmpl.id, name: tmpl.name, cost: tmpl.manaCost || 0,
+          atk: tmpl.attack || 0, hp: tmpl.defense || 1, type: 'minion',
+          desc: tmpl.description || '', race: tmpl.race || '',
+          keywords: tmpl.keywords || [], picture: tmpl.picture || null,
+          picX: tmpl.picX, picY: tmpl.picY, rarity: tmpl.rarity || 'common', emoji: '⚔️',
+        };
+        if (toField && gs.me.field.length < MAX_FIELD_SIZE) {
+          gs.me.field.push(createMinionFromCard(handCard));
+        } else if (!toField && gs.me.hand.length < 10) {
+          gs.me.hand.push(handCard);
+        }
+      }
+    }
+  }
+
+  function fillBoardWithNamibia() {
+    var tmpl = allCards.find(function (c) { return c.id === 'mnho3jvibuvzn'; });
+    while (gs.me.field.length < MAX_FIELD_SIZE) {
+      var base = tmpl ? {
+        id: tmpl.id, name: tmpl.name, atk: tmpl.attack || 0, hp: tmpl.defense || 1,
+        desc: tmpl.description || '', race: tmpl.race || '',
+        keywords: (tmpl.keywords && tmpl.keywords.length) ? tmpl.keywords : ['Divine Shield'],
+        picture: tmpl.picture || null, picX: tmpl.picX, picY: tmpl.picY, rarity: tmpl.rarity,
+      } : { id: 'mnho3jvibuvzn', name: 'Namibia', atk: 1, hp: 1, desc: '', race: 'none', keywords: ['Divine Shield'] };
+      gs.me.field.push(createMinionFromCard(base));
+    }
+  }
+
+  // ─── Targeting system ─────────────────────────────────────────
+  function getTargetMode(card) {
+    switch (card.id) {
+      case 'mnhkv48ubc24c': return 'any-minion';      // Git Ignored
+      case 'mnhp7evhvm2ar': return 'friendly-minion';  // Dong Norman
+      case 'mnhpj3ttvnvn5': return 'friendly-minion';  // Heeeyyyyy
+      case 'mnhoaj6ws7fni': return 'any-minion';       // Emilie
+      case 'mnhp1g55vetoo': return 'any-minion';       // Flirty Anthony
+      default:              return null;
+    }
+  }
+
+  function enterTargeting(card, handIdx) {
+    pendingPlay       = { card: card, handIdx: handIdx };
+    pendingTargetMode = getTargetMode(card);
+    document.body.classList.add('targeting-mode');
+    renderAll();
+  }
+
+  function cancelTargeting() {
+    pendingPlay = null; pendingTargetMode = null;
+    document.body.classList.remove('targeting-mode');
+    renderAll();
+  }
+
+  function onTargetSelected(owner, targetIdx) {
+    if (!pendingPlay) return;
+    var card = pendingPlay.card; var handIdx = pendingPlay.handIdx;
+    cancelTargeting();
+    executePlay(card, handIdx, { owner: owner, idx: targetIdx });
+  }
+
+  // ─── Execute a card play ──────────────────────────────────────
+  function executePlay(card, handIdx, target) {
+    gs.me.mana -= card.cost;
+    gs.me.hand.splice(handIdx, 1);
+    if (card.type === 'minion') {
+      var m = createMinionFromCard(card);
+      gs.me.field.push(m);
+      resolveEffect(card, target);
+      sendNet({
+        action: 'play-minion', card: minionToNetCard(m),
+        effectId: card.id, target: target,
+        myField: gs.me.field.map(minionToNetCard), handCount: gs.me.hand.length,
+      });
+    } else {
+      resolveEffect(card, target);
+      sendNet({
+        action: 'play-spell', cardId: card.id, target: target,
+        myField: gs.me.field.map(minionToNetCard), handCount: gs.me.hand.length,
+      });
+    }
+    renderAll();
+  }
+
+  // ─── Card effects dispatch ────────────────────────────────────
+  function resolveEffect(card, target) {
+    switch (card.id) {
+      case 'mnhkv48ubc24c': { var m = getTargetMinion(target); if (m) applySilence(m); break; }
+      case 'mnhnqi5fzx3ge': { summonOrDrawByRace('Rodiller', 1, true); break; }
+      case 'mnhoqjk1ucdjt': { summonOrDrawByRace('Nita', 2, false); break; }
+      case 'mnhp7evhvm2ar': {
+        var m = getTargetMinion(target);
+        if (m) { applyDivineShield(m); addKeyword(m,'Windfury'); m.attacksLeft=2; addKeyword(m,'Charge'); m.sleeping=false; }
+        break;
+      }
+      case 'mnhpj3ttvnvn5': { var m = getTargetMinion(target); if (m) { m.atk+=2; m.hp+=2; m.maxHp+=2; } break; }
+      case 'mnho123wgn29l': { fillBoardWithNamibia(); break; }
+      case 'mnhoaj6ws7fni': {
+        if (target) {
+          var field = (target.owner === 'me') ? gs.me.field : gs.opp.field;
+          var spliced = field.splice(target.idx, 1)[0];
+          if (spliced) {
+            if (target.owner === 'me' && gs.me.hand.length < 10) gs.me.hand.push(fieldMinionToHandCard(spliced));
+            else if (target.owner === 'opp' && gs.opp.hand.length < 10) gs.opp.hand.push({ id: 'opp_hidden' });
+          }
+        }
+        break;
+      }
+      case 'mnhojn13ctzan': { gs.me.field.forEach(applySilence); gs.opp.field.forEach(applySilence); break; }
+      case 'mnhoogmbge1vk': { summonOrDrawByRace('Nita', 2, true); break; }
+      case 'mnhp1g55vetoo': { var m = getTargetMinion(target); if (m) applyDivineShield(m); break; }
+    }
+  }
+
+  // ─── Deathrattle ──────────────────────────────────────────────
+  function resolveDeathrattle(minion) {
+    if (minion.silenced) return;
+    if (minion.cardId === 'mnhp3z0lp7pg2') { // Lochtnita – gain random Nita card
+      var found = false;
+      for (var i = 0; i < gs.me.deck.length; i++) {
+        if ((gs.me.deck[i].race || '').toLowerCase() === 'nita') {
+          if (gs.me.hand.length < 10) gs.me.hand.push(gs.me.deck.splice(i, 1)[0]);
+          gs.me.deckCount = Math.max(0, gs.me.deckCount - 1);
+          found = true; break;
+        }
+      }
+      if (!found && allCards.length && gs.me.hand.length < 10) {
+        var pool = allCards.filter(function (c) { return (c.race||'').toLowerCase() === 'nita' && c.cardType === 'minion'; });
+        if (pool.length) {
+          var tmpl = pool[Math.floor(Math.random() * pool.length)];
+          gs.me.hand.push({ id:tmpl.id, name:tmpl.name, cost:tmpl.manaCost||0, atk:tmpl.attack||0,
+            hp:tmpl.defense||1, type:'minion', desc:tmpl.description||'', race:tmpl.race||'',
+            keywords:tmpl.keywords||[], picture:tmpl.picture||null, picX:tmpl.picX,
+            picY:tmpl.picY, rarity:tmpl.rarity||'common', emoji:'⚔️' });
+        }
+      }
+      sendFieldSync();
+    }
+  }
+
+  // ─── Network receivers for card effects ──────────────────────
+  function receiveCardEffect(data) {
+    if (data.myField) gs.opp.field = data.myField.map(netCardToFieldMinion);
+    if (data.handCount != null) {
+      var hc = Math.max(0, Math.min(10, data.handCount));
+      gs.opp.hand = new Array(hc).fill(0).map(function () { return { id:'opp_hidden' }; });
+    }
+    var target = data.target;
+    var cardId  = data.effectId || data.cardId;
+    switch (cardId) {
+      case 'mnhkv48ubc24c': // Git Ignored silence
+        if (target && target.owner === 'opp' && gs.me.field[target.idx]) applySilence(gs.me.field[target.idx]);
+        break;
+      case 'mnhoaj6ws7fni': // Emilie bounce
+        if (target && target.owner === 'opp' && gs.me.field[target.idx]) {
+          var bounced = gs.me.field.splice(target.idx, 1)[0];
+          if (bounced && gs.me.hand.length < 10) gs.me.hand.push(fieldMinionToHandCard(bounced));
+        }
+        break;
+      case 'mnhojn13ctzan': // Emmanunita silence all
+        gs.me.field.forEach(applySilence);
+        break;
+    }
+    renderAll();
+  }
+
+  function receiveFieldSync(data) {
+    if (data.field) gs.opp.field = data.field.map(netCardToFieldMinion);
+    if (data.handCount != null) {
+      var hc = Math.max(0, Math.min(10, data.handCount));
+      gs.opp.hand = new Array(hc).fill(0).map(function () { return { id:'opp_hidden' }; });
+    }
+    renderAll();
   }
 
   // ─── Init ────────────────────────────────────────────────────

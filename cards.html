@@ -531,32 +531,7 @@
     }
     input[type="file"]:hover { border-color: var(--accent); }
 
-    /* Keyword chips */
-    .keywords-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-top: 0.4rem;
-    }
 
-    .kw-chip {
-      padding: 0.22rem 0.6rem;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      font-weight: 700;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--muted);
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-      user-select: none;
-    }
-    .kw-chip:hover { border-color: var(--accent2); color: var(--accent2); }
-    .kw-chip.selected {
-      background: rgba(201,168,76,0.15);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
 
     /* Art preview */
     .art-preview {
@@ -752,14 +727,9 @@
         <div class="full">
           <label class="field-label" for="fDesc">
             Description
-            <span class="note"> — keyword interpreter (Taunt, Battlecry, etc. will highlight)</span>
+            <span class="note"> — keywords (Taunt, Charge, etc.) are auto-detected</span>
           </label>
           <textarea id="fDesc" placeholder="e.g. Taunt. Battlecry: Deal 2 damage to a random enemy."></textarea>
-        </div>
-
-        <div class="full">
-          <label class="field-label">Keywords <span class="note">(click to toggle)</span></label>
-          <div class="keywords-row" id="kwChips"></div>
         </div>
 
         <div class="full">
@@ -815,7 +785,6 @@
     // ── State ──────────────────────────────────────────────
     let db = [];
     let editingId = null;
-    let selectedKw = new Set();
     let picX = 50, picY = 50;  // focal point %
 
     // ── Server API ─────────────────────────────────────────
@@ -915,10 +884,13 @@
       }
       frame.appendChild(typeStrip);
 
-      // Description box
+      // Description box — show keyword array first (bold), then description text
       const desc = document.createElement('div');
       desc.className = 'desc-box';
-      desc.innerHTML = highlightKeywords(card.description ?? '');
+      const kwArr  = (card.keywords ?? []).filter(Boolean);
+      const kwHtml = kwArr.map(k => `<span class="kw">${escapeHtml(k)}</span>`).join(' ');
+      const bodyHtml = highlightKeywords(card.description ?? '');
+      desc.innerHTML = kwHtml + (kwHtml && bodyHtml ? '<br>' : '') + bodyHtml;
       frame.appendChild(desc);
 
       wrapper.appendChild(frame);
@@ -985,22 +957,6 @@
         `${db.length} card${db.length !== 1 ? 's' : ''}`;
     }
 
-    // ── Keyword chips ──────────────────────────────────────
-    function renderKwChips() {
-      const container = document.getElementById('kwChips');
-      container.innerHTML = '';
-      KEYWORDS.forEach(kw => {
-        const chip = document.createElement('span');
-        chip.className = 'kw-chip' + (selectedKw.has(kw) ? ' selected' : '');
-        chip.textContent = kw;
-        chip.addEventListener('click', () => {
-          selectedKw.has(kw) ? selectedKw.delete(kw) : selectedKw.add(kw);
-          chip.classList.toggle('selected');
-        });
-        container.appendChild(chip);
-      });
-    }
-
     // ── Form helpers ───────────────────────────────────────
     function updateTypeFields() {
       const type = document.getElementById('fCardType').value;
@@ -1034,7 +990,6 @@
       document.getElementById('artPreview').classList.remove('has-image');
       document.getElementById('artHint').style.display = 'none';
       picX = 50; picY = 50;
-      selectedKw = new Set();
       updateTypeFields();
     }
 
@@ -1067,7 +1022,6 @@
     function openModal(title) {
       document.getElementById('modalTitle').textContent = title;
       document.getElementById('modalOverlay').classList.add('open');
-      renderKwChips();
     }
 
     function closeModal() {
@@ -1103,7 +1057,6 @@
       picY = card.picY ?? 50;
       setArtPreview(card.picture ?? null);
 
-      selectedKw = new Set(card.keywords ?? []);
       updateTypeFields();
       document.getElementById('btnDeleteCard').style.display = '';
       openModal('Edit Card');
@@ -1120,7 +1073,7 @@
         manaCost:    Math.max(0, parseInt(document.getElementById('fManaCost').value) || 0),
         description: document.getElementById('fDesc').value.trim(),
         race:        cardType !== 'spell' ? document.getElementById('fRace').value : 'none',
-        keywords:    [...selectedKw],
+        keywords:    KEYWORDS.filter(kw => document.getElementById('fDesc').value.toLowerCase().includes(kw.toLowerCase())),
         picX,
         picY,
         picture:     picOverride !== undefined ? picOverride : null,
