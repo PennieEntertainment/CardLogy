@@ -1449,6 +1449,8 @@
   var mqtt = null;
   var mqttSubscribed = false; // true once SUBACK received
   var _netQueue = [];          // messages buffered while MQTT is offline
+  var _everConnected = false;  // true after first successful subscribe, used to detect reconnects
+  var _endTurnRetryTimer = null; // retransmit end-turn until receipt is confirmed
   // Guest waits for host's 'game-start' before its turn logic begins
   var guestReceivedStart = false;
 
@@ -1470,6 +1472,13 @@
         // Flush any messages that were queued while the connection was down
         var _fq = _netQueue.splice(0);
         _fq.forEach(function (p) { mqtt.publish(TOPIC_PREFIX + roomCode, p, { qos: 1 }); });
+        // If we're reconnecting mid-game, ask the opponent for their current state.
+        // This recovers the case where the broker dropped messages to us (clean session +
+        // disconnection = missed QoS-1 deliveries).
+        if (_everConnected && _initStarted) {
+          sendNet({ action: 'request-sync' });
+        }
+        _everConnected = true;
         // Signal the init() handler that we're ready to start
         onMqttReady();
       });
@@ -1523,17 +1532,60 @@
 
   function handleNetMsg(data) {
     if (!data || !data.action) return;
+    // Any arriving message from the opponent means they got our end-turn — stop retrying.
+    clearInterval(_endTurnRetryTimer); _endTurnRetryTimer = null;
     switch (data.action) {
-      case 'end-turn':    receiveEndTurn(data);    break;
-      case 'play-minion': receivePlayMinion(data); break;
-      case 'play-spell':  receiveCardEffect(data); break;
-      case 'field-sync':  receiveFieldSync(data);  break;
-      case 'attack':      receiveAttack(data);     break;
-      case 'sync':        receiveSyncOpp(data);    break;
+      case 'end-turn':      receiveEndTurn(data);    break;
+      case 'play-minion':   receivePlayMinion(data); break;
+      case 'play-spell':    receiveCardEffect(data); break;
+      case 'field-sync':    receiveFieldSync(data);  break;
+      case 'attack':        receiveAttack(data);     break;
+      case 'sync':          receiveSyncOpp(data);    break;
+      case 'request-sync':  receiveSyncRequest();    break;
     }
   }
 
-  function receiveSyncOpp(data) { if (!data) return; }
+  // Opponent reconnected — send them a full state snapshot so they can recover.
+  function receiveSyncRequest() {
+    sendNet({
+      action:     'sync',
+      activeRole: gs.activeRole,
+      turn:       gs.turn,
+      myField:    gs.me.field.map(minionToNetCard),
+      myHp:       gs.me.hp,
+      myMana:     gs.me.mana,
+      myMaxMana:  gs.me.maxMana,
+      handCount:  gs.me.hand.length,
+    });
+  }
+
+  // Received a state snapshot from opponent — recover any missed turn transitions.
+  function receiveSyncOpp(data) {
+    if (!data) return;
+    if (data.myField)           gs.opp.field   = data.myField.map(netCardToFieldMinion);
+    if (data.myHp    != null)   gs.opp.hp      = data.myHp;
+    if (data.myMana  != null)   gs.opp.mana    = data.myMana;
+    if (data.myMaxMana != null) gs.opp.maxMana = data.myMaxMana;
+    if (data.handCount != null) {
+      var hc = Math.max(0, Math.min(10, data.handCount));
+      gs.opp.hand = new Array(hc).fill(0).map(function () { return { id: 'opp_hidden' }; });
+    }
+    // Recover missed turn transitions: if the opponent is ahead state-wise and the
+    // active role differs from what we have locally, catch up.
+    if (data.turn != null && data.activeRole &&
+        data.turn >= gs.turn && gs.activeRole !== data.activeRole) {
+      gs.turn       = data.turn;
+      gs.activeRole = data.activeRole;
+      if (isMyTurn()) {
+        startTurn(myRole);  // it became our turn while we were offline
+      } else {
+        stopRope();
+        renderAll();
+      }
+    } else {
+      renderAll();
+    }
+  }
 
   // ─── Dummy deck (placeholder until real cards are ready) ──
   function makeDummyDeck() {
@@ -1899,22 +1951,36 @@
     if (!isMyTurn() || gs.gameOver) return;
     stopRope();
 
-    // Send to opponent — include our role plus a full state snapshot so the
-    // receiver can recover even if preceding messages (play, attack) were lost.
-    sendNet({
+    // Full snapshot so the receiver can recover even if play/attack msgs were lost.
+    var etPayload = {
       action: 'end-turn', turn: gs.turn, from: myRole,
       myField:    gs.me.field.map(minionToNetCard),
       myHp:       gs.me.hp,
       yourHp:     gs.opp.hp,
       yourField:  gs.opp.field.map(minionToNetCard),
       handCount:  gs.me.hand.length,
-    });
+    };
+    sendNet(etPayload);
+
+    // Retry up to 3 more times (every 2 s) in case the broker dropped the message.
+    // receiveEndTurn guards against duplicate processing via the turn number.
+    var _retries = 0;
+    clearInterval(_endTurnRetryTimer);
+    _endTurnRetryTimer = setInterval(function () {
+      if (_retries >= 3) { clearInterval(_endTurnRetryTimer); _endTurnRetryTimer = null; return; }
+      sendNet(etPayload);
+      _retries++;
+    }, 2000);
 
     gs.turn += 1;
     startTurn(myRole === 'host' ? 'guest' : 'host');
   }
 
   function receiveEndTurn(data) {
+    // Dedup: ignore retransmitted end-turn messages we already processed.
+    // After processing, gs.turn === data.turn + 1, so the check below is true for duplicates.
+    if (data.turn != null && data.turn + 1 <= gs.turn) return;
+
     // Authoritative end-of-turn state sync — recovers from any messages that
     // were lost in transit during the opponent's turn (play, attack, etc.).
     if (data.myField)   gs.opp.field = data.myField.map(netCardToFieldMinion);
