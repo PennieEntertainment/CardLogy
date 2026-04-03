@@ -1891,15 +1891,30 @@
     if (!isMyTurn() || gs.gameOver) return;
     stopRope();
 
-    // Send to opponent — include our role so the receiver does not depend on its
-    // own myRole (which could be stale) to decide whose turn comes next.
-    sendNet({ action: 'end-turn', turn: gs.turn, from: myRole });
+    // Send to opponent — include our role plus a full state snapshot so the
+    // receiver can recover even if preceding messages (play, attack) were lost.
+    sendNet({
+      action: 'end-turn', turn: gs.turn, from: myRole,
+      myField:    gs.me.field.map(minionToNetCard),
+      myHp:       gs.me.hp,
+      yourHp:     gs.opp.hp,
+      handCount:  gs.me.hand.length,
+    });
 
     gs.turn += 1;
     startTurn(myRole === 'host' ? 'guest' : 'host');
   }
 
   function receiveEndTurn(data) {
+    // Authoritative end-of-turn state sync — recovers from any messages that
+    // were lost in transit during the opponent's turn (play, attack, etc.).
+    if (data.myField) gs.opp.field = data.myField.map(netCardToFieldMinion);
+    if (data.myHp   != null) gs.opp.hp = data.myHp;
+    if (data.yourHp != null) gs.me.hp  = data.yourHp;
+    if (data.handCount != null) {
+      var hc = Math.max(0, Math.min(10, data.handCount));
+      gs.opp.hand = new Array(hc).fill(0).map(function () { return { id: 'opp_hidden' }; });
+    }
     gs.turn = (data.turn || gs.turn) + 1;
     // Derive whose turn it is from the sender's role so this is independent of
     // any local myRole corruption that caused the "both opponent's turns" bug.
@@ -2018,7 +2033,7 @@
       gs.opp.hp -= atkDmg;
       attacker.attacksLeft = (attacker.attacksLeft || 1) - 1;
       attacker.sleeping = (attacker.attacksLeft <= 0);
-      sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: atkDmg, atkSleeping: attacker.sleeping, myField: gs.me.field.map(minionToNetCard) });
+      sendNet({ action: 'attack', attackerIdx: attackingMinionIdx, targetType: 'hero', atkAtk: atkDmg, atkSleeping: attacker.sleeping, myField: gs.me.field.map(minionToNetCard), yourHp: gs.opp.hp });
       if (hRect) showDmgPopup(hRect.left + hRect.width / 2, hRect.top + hRect.height / 2, -atkDmg);
     }
 
@@ -2080,8 +2095,10 @@
           theirMinion.sleeping = data.atkSleeping != null ? data.atkSleeping : true;
         }
       }
-      gs.me.hp -= (data.atkAtk || 0);
-      if (heroRect && data.atkAtk) showDmgPopup(heroRect.left + heroRect.width / 2, heroRect.top + heroRect.height / 2, -data.atkAtk);
+      // Use authoritative HP value when provided to prevent desync
+      var dmgToMe = data.atkAtk || 0;
+      gs.me.hp = (data.yourHp != null) ? data.yourHp : gs.me.hp - dmgToMe;
+      if (heroRect && dmgToMe) showDmgPopup(heroRect.left + heroRect.width / 2, heroRect.top + heroRect.height / 2, -dmgToMe);
     }
     checkGameOver();
     renderAll();
