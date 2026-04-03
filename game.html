@@ -82,9 +82,9 @@
           transparent 2px, transparent 80px
         ),
         /* opponent lane glow */
-        radial-gradient(ellipse 60% 28% at 50% 28%, rgba(60,90,220,0.20) 0%, transparent 100%),
+        radial-gradient(ellipse 68% 38% at 50% 25%, rgba(35,70,220,0.42) 0%, transparent 100%),
         /* player lane glow */
-        radial-gradient(ellipse 60% 28% at 50% 72%, rgba(200,115,20,0.22) 0%, transparent 100%);
+        radial-gradient(ellipse 68% 38% at 50% 75%, rgba(210,105,5,0.42) 0%, transparent 100%);
     }
 
     /* Ornate metal rail lines */
@@ -107,9 +107,9 @@
     .info-bar {
       flex-shrink: 0;
       height: 74px;
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      gap: 14px;
       padding: 0 20px;
       background: linear-gradient(180deg, rgba(40,22,8,0.95) 0%, rgba(58,32,10,0.88) 100%);
       border-bottom: 1px solid rgba(232,184,75,0.40);
@@ -123,9 +123,26 @@
     .info-bar.bottom {
       border-bottom: none;
       border-top: 1px solid rgba(232,184,75,0.40);
-      flex-direction: row-reverse;
       background: linear-gradient(0deg, rgba(48,26,8,0.96) 0%, rgba(58,32,10,0.88) 100%);
       box-shadow: 0 -2px 22px rgba(0,0,0,0.55);
+    }
+    .bar-center {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      justify-content: center;
+    }
+    .bar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-start;
+    }
+    .bar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-end;
     }
     /* Bottom ornate rail */
     .info-bar.bottom::after {
@@ -584,12 +601,14 @@
       min-height: 0;
     }
     .field.opp-field {
-      align-items: flex-end;
-      padding-bottom: 4px;
+      align-items: center;
+      min-height: 130px;
+      background: radial-gradient(ellipse 85% 75% at 50% 75%, rgba(40,70,210,0.16) 0%, transparent 100%);
     }
     .field.my-field {
-      align-items: flex-start;
-      padding-top: 4px;
+      align-items: center;
+      min-height: 130px;
+      background: radial-gradient(ellipse 85% 75% at 50% 25%, rgba(200,105,10,0.16) 0%, transparent 100%);
     }
 
     /* Drop zone hint */
@@ -787,12 +806,17 @@
     /* ─── Center Divider ────────────────────────────────────── */
     .center-bar {
       flex-shrink: 0;
-      height: 72px;
+      height: 80px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
       z-index: 6;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(50,30,8,0.45) 50%,
+        transparent 100%
+      );
     }
 
     /* Pin turn-indicator to the left, turn-counter to the right so they
@@ -1120,24 +1144,30 @@
 
   <!-- ── Opponent Info Bar ──────────────────────────────────── -->
   <div class="info-bar top" id="opp-info">
-    <div class="hero-portrait" id="opp-hero" title="Opponent hero">
-      🧙
-      <div class="hp-orb" id="opp-hp-orb">30</div>
+    <!-- Left: deck -->
+    <div class="bar-left">
+      <div class="deck-count">
+        <div class="deck-pile" id="opp-deck-count">30</div>
+        <div class="deck-lbl">Deck</div>
+      </div>
     </div>
-    <div>
-      <div class="player-name" id="opp-name">Opponent</div>
-      <div style="font-size:0.65rem;color:var(--muted);margin-top:2px" id="opp-turn-label">…</div>
+    <!-- Center: hero + name -->
+    <div class="bar-center">
+      <div class="hero-portrait" id="opp-hero" title="Opponent hero">
+        🧙
+        <div class="hp-orb" id="opp-hp-orb">30</div>
+      </div>
+      <div>
+        <div class="player-name" id="opp-name">Opponent</div>
+        <div style="font-size:0.65rem;color:var(--muted);margin-top:2px" id="opp-turn-label">…</div>
+      </div>
     </div>
-    <div style="flex:1"></div>
-    <!-- Opponent mana (mirrored) -->
-    <div class="mana-wrap">
-      <div class="mana-bar" id="opp-mana-bar"></div>
-      <div class="mana-text" id="opp-mana-text">0 / 0</div>
-    </div>
-    <!-- Deck count -->
-    <div class="deck-count">
-      <div class="deck-pile" id="opp-deck-count">30</div>
-      <div class="deck-lbl">Deck</div>
+    <!-- Right: mana -->
+    <div class="bar-right">
+      <div class="mana-wrap">
+        <div class="mana-bar" id="opp-mana-bar"></div>
+        <div class="mana-text" id="opp-mana-text">0 / 0</div>
+      </div>
     </div>
   </div>
 
@@ -1184,24 +1214,30 @@
 
   <!-- ── Player Info Bar ────────────────────────────────────── -->
   <div class="info-bar bottom" id="my-info">
-    <div class="hero-portrait" id="my-hero" title="Your hero">
-      ⚔️
-      <div class="hp-orb" id="my-hp-orb">30</div>
+    <!-- Left: deck -->
+    <div class="bar-left">
+      <div class="deck-count">
+        <div class="deck-pile" id="my-deck-count">30</div>
+        <div class="deck-lbl">Deck</div>
+      </div>
     </div>
-    <div>
-      <div class="player-name" id="my-name">You</div>
-      <div style="font-size:0.65rem;color:var(--muted);margin-top:2px" id="my-turn-label">…</div>
+    <!-- Center: hero + name -->
+    <div class="bar-center">
+      <div class="hero-portrait" id="my-hero" title="Your hero">
+        ⚔️
+        <div class="hp-orb" id="my-hp-orb">30</div>
+      </div>
+      <div>
+        <div class="player-name" id="my-name">You</div>
+        <div style="font-size:0.65rem;color:var(--muted);margin-top:2px" id="my-turn-label">…</div>
+      </div>
     </div>
-    <div style="flex:1"></div>
-    <!-- Player mana -->
-    <div class="mana-wrap">
-      <div class="mana-bar" id="my-mana-bar"></div>
-      <div class="mana-text" id="my-mana-text">0 / 0</div>
-    </div>
-    <!-- Deck count -->
-    <div class="deck-count">
-      <div class="deck-pile" id="my-deck-count">30</div>
-      <div class="deck-lbl">Deck</div>
+    <!-- Right: mana -->
+    <div class="bar-right">
+      <div class="mana-wrap">
+        <div class="mana-bar" id="my-mana-bar"></div>
+        <div class="mana-text" id="my-mana-text">0 / 0</div>
+      </div>
     </div>
   </div>
 
